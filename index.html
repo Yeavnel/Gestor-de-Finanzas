@@ -1,0 +1,3280 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#3b82f6">
+<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+    <title>Control de Capital y Facturas - Multi Perfil</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/browser-image-compression@2.0.1/dist/browser-image-compression.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.js"></script>
+    <script src="https://unpkg.com/dropbox@10.34.0/dist/Dropbox-sdk.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f9fb;
+        }
+        .card {
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -2px rgba(0, 0, 0, 0.1);
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+        .tab-button.active {
+            border-bottom: 4px solid #3b82f6;
+            color: #3b82f6;
+            font-weight: 600;
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 50;
+        }
+        .modal-overlay.active {
+            display: flex;
+        }
+        .modal-content {
+            background: white;
+            padding: 2rem;
+            border-radius: 12px;
+            max-width: 600px;
+            width: 90%;
+            max-height: 90vh;
+            overflow-y: auto;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+        }
+                .type-button {
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        .type-button:hover:not(.active) {
+            transform: translateY(-2px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+            filter: brightness(0.95);
+        }
+        .type-button.active {
+            transform: scale(1.05) translateY(-2px);
+            box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+            font-weight: 700;
+        }
+        .type-button.active[onclick*="'ingreso'"] {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
+            color: white !important;
+            border: 2px solid #047857;
+        }
+        .type-button.active[onclick*="'egreso'"] {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
+            color: white !important;
+            border: 2px solid #b91c1c;
+        }
+        .type-button.active[onclick*="'promesa'"] {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%) !important;
+            color: white !important;
+            border: 2px solid #b45309;
+        }
+        .image-preview-container {
+            text-align: center;
+            margin: 15px 0;
+        }
+        .image-preview-container img {
+            width: 150px;
+            height: 150px;
+            object-fit: cover;
+            border-radius: 12px;
+            border: 2px solid #E5E7EB;
+            transition: all 0.3s ease;
+            cursor: zoom-in;
+        }
+        .image-preview-container img:hover {
+            transform: scale(1.05);
+            box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+        }
+        .image-actions {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin-top: 10px;
+        }
+        .image-actions button {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            transition: transform 0.2s;
+            padding: 8px;
+        }
+        .image-actions button:hover {
+            transform: scale(1.2);
+        }
+        .image-actions button:first-child:hover {
+            filter: drop-shadow(0 0 3px #EF4444);
+        }
+        .image-actions button:last-child:hover {
+            filter: drop-shadow(0 0 3px #667EEA);
+        }
+        .upload-area {
+            width: 200px;
+            height: 200px;
+            margin: 15px auto;
+            border: 2px dashed #D1D5DB;
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .upload-area:hover {
+            border-color: #667EEA;
+            background: #F3F4F6;
+        }
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 10px;
+        }
+        .upload-text {
+            font-size: 14px;
+            color: #6B7280;
+        }
+        .fullscreen-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.95);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+            cursor: zoom-out;
+        }
+        .fullscreen-overlay.active {
+            display: flex;
+        }
+        .fullscreen-overlay img {
+            max-width: 90%;
+            max-height: 90vh;
+            border-radius: 8px;
+        }
+        .storage-indicator {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        .storage-bar {
+            width: 100%;
+            height: 8px;
+            background: rgba(255,255,255,0.3);
+            border-radius: 4px;
+            margin-top: 8px;
+            overflow: hidden;
+        }
+        .storage-fill {
+            height: 100%;
+            background: white;
+            border-radius: 4px;
+            transition: width 0.3s ease;
+        }
+        .danger-zone {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 2px solid #fee2e2;
+        }
+        .summary-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+        }
+        .summary-card h3 {
+            font-size: 0.875rem;
+            opacity: 0.9;
+            margin-bottom: 8px;
+        }
+        .summary-card .value {
+            font-size: 2rem;
+            font-weight: bold;
+        }
+        .summary-card .change {
+            font-size: 0.875rem;
+            margin-top: 5px;
+        }
+        .cloud-section {
+            background: linear-gradient(135deg, #60a5fa 0%, #3b82f6 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+        }
+        .cloud-connected {
+            background: linear-gradient(135deg, #34d399 0%, #10b981 100%);
+        }
+        .share-section {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 12px;
+            margin-top: 20px;
+        }
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            background: white;
+            padding: 16px 24px;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            display: none;
+            z-index: 10000;
+            animation: slideIn 0.3s ease;
+        }
+        .toast.active {
+            display: block;
+        }
+        @keyframes slideIn {
+            from {
+                transform: translateX(400px);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        .provider-card {
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 15px;
+            transition: all 0.3s;
+            cursor: pointer;
+        }
+        .provider-card:hover {
+            border-color: #3b82f6;
+            background: #f0f9ff;
+        }
+        .provider-card.selected {
+            border-color: #3b82f6;
+            background: #dbeafe;
+        }
+        .backup-item {
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 10px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .share-url-box {
+            background: rgba(255,255,255,0.2);
+            padding: 12px;
+            border-radius: 8px;
+            word-break: break-all;
+            font-size: 0.875rem;
+            margin: 15px 0;
+        }
+        .profile-selector {
+            position: relative;
+            display: inline-block;
+        }
+        .profile-dropdown {
+            position: absolute;
+            top: 100%;
+            left: 0;
+            background: white;
+            border: 1px solid #e5e7eb;
+            border-radius: 8px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+            min-width: 280px;
+            max-height: 400px;
+            overflow-y: auto;
+            display: none;
+            z-index: 1000;
+            margin-top: 8px;
+        }
+        .profile-dropdown.active {
+            display: block;
+        }
+        .profile-dropdown-item {
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+            border-bottom: 1px solid #f3f4f6;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .profile-dropdown-item:hover {
+            background: #f9fafb;
+        }
+        .profile-dropdown-item.active {
+            background: #eff6ff;
+            font-weight: 600;
+        }
+        .profile-dropdown-separator {
+            height: 1px;
+            background: #e5e7eb;
+            margin: 8px 0;
+        }
+        .profile-dropdown-action {
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-weight: 500;
+        }
+        .profile-dropdown-action:hover {
+            background: #f9fafb;
+        }
+        .profile-icon-selector {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            margin: 15px 0;
+        }
+        .profile-icon-option {
+            width: 50px;
+            height: 50px;
+            font-size: 28px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .profile-icon-option:hover {
+            border-color: #3b82f6;
+            background: #eff6ff;
+        }
+        .profile-icon-option.selected {
+            border-color: #3b82f6;
+            background: #dbeafe;
+            transform: scale(1.1);
+        }
+        .profile-color-selector {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            gap: 10px;
+            margin: 15px 0;
+        }
+        .profile-color-option {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            border: 3px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .profile-color-option:hover {
+            transform: scale(1.1);
+        }
+        .profile-color-option.selected {
+            border-color: #1f2937;
+            transform: scale(1.2);
+        }
+        .profile-card {
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 15px;
+            transition: all 0.3s;
+        }
+        .profile-card:hover {
+            box-shadow: 0 8px 16px rgba(0, 0, 0, 0.1);
+        }
+        .profile-card.active-profile {
+            border-color: #3b82f6;
+            background: #eff6ff;
+        }
+        .caja-buttons-container {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 12px;
+            margin: 0 auto;
+            max-width: 600px;
+        }
+        @media (max-width: 640px) {
+            .mobile-header-container {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+            }
+            .mobile-header-container > * {
+                width: 100%;
+                text-align: center;
+            }
+.mobile-header-container .profile-selector {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+            .main-tabs-container {
+                display: grid !important;
+                grid-template-columns: repeat(2, 1fr) !important;
+                grid-template-rows: repeat(2, 1fr);
+                gap: 8px !important;
+            }
+            .tab-button {
+                width: 100%;
+                justify-content: center;
+                padding: 12px 8px !important;
+                font-size: 13px;
+                white-space: normal;
+                height: auto;
+                min-height: 48px;
+            }
+            .search-controls-mobile {
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+            }
+            .search-controls-mobile > * {
+                width: 100%;
+            }
+            .caja-buttons-container button {
+                flex: 0 1 calc(50% - 6px);
+                min-width: 140px;
+                max-width: 180px;
+            }
+        }
+
+    </style>
+</head>
+<body class="p-4 md:p-8">
+
+<div class="max-w-7xl mx-auto bg-white rounded-2xl shadow-2xl overflow-hidden">
+    <header class="bg-gradient-to-r from-blue-600 to-purple-700 text-white p-8">
+        <div class="flex items-center justify-between mobile-header-container">
+            <div>
+                <h1 class="text-4xl font-extrabold">💰 Gestor de Finanzas</h1>
+                <p class="mt-2 text-sm">Multi-Perfil • Backup en Nube • Compartir</p>
+            </div>
+            <div class="profile-selector">
+                <button onclick="toggleProfileDropdown()" class="bg-white/20 hover:bg-white/30 text-white px-4 py-3 rounded-lg flex items-center gap-3 transition">
+                    <span id="currentProfileIcon" class="text-2xl">📊</span>
+                    <div class="text-left">
+                        <div class="text-xs opacity-80">Perfil Activo</div>
+                        <div id="currentProfileName" class="font-bold">Mi Negocio</div>
+                    </div>
+                    <span>▼</span>
+                </button>
+                
+                <div id="profileDropdown" class="profile-dropdown">
+                    <div id="profileList"></div>
+                    <div class="profile-dropdown-separator"></div>
+                    <div class="profile-dropdown-action" onclick="openCreateProfileModal()">
+                        <span>➕</span>
+                        <span>Crear Nuevo Perfil</span>
+                    </div>
+                    <div class="profile-dropdown-action" onclick="openManageProfilesModal()">
+                        <span>⚙️</span>
+                        <span>Administrar Perfiles</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <nav class="flex border-b border-gray-200 bg-gray-50 main-tabs-container">
+        <button class="tab-button flex-1 py-4 text-center font-medium text-gray-700 hover:bg-gray-100 active" onclick="switchTab('registro')">
+            📝 Registro
+        </button>
+        <button class="tab-button flex-1 py-4 text-center font-medium text-gray-700 hover:bg-gray-100" onclick="switchTab('smallCash')">
+            💵 Caja & Transferencias
+        </button>
+        <button class="tab-button flex-1 py-4 text-center font-medium text-gray-700 hover:bg-gray-100" onclick="switchTab('search')">
+            🔍 Historial / Búsqueda
+        </button>
+        <button class="tab-button flex-1 py-4 text-center font-medium text-gray-700 hover:bg-gray-100" onclick="switchTab('summary')">
+            📊 Resúmenes
+        </button>
+    </nav>
+
+    <main class="p-6">
+        <div id="registro" class="tab-content active">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                <div class="card bg-blue-100 p-4 rounded-lg">
+                    <h3 class="text-sm font-semibold text-gray-600">Capital Total Disponible</h3>
+                    <p id="capitalTotalDisplay" class="text-3xl font-bold text-blue-700">Q0.00</p>
+                </div>
+                <div class="card bg-green-100 p-4 rounded-lg">
+                    <h3 class="text-sm font-semibold text-gray-600">Último Ingreso Registrado</h3>
+                    <p id="lastIncomeDisplay" class="text-2xl font-bold text-green-700">N/A</p>
+                    <p id="lastIncomeDate" class="text-xs text-gray-600">Fecha:</p>
+                </div>
+                <div class="card bg-red-100 p-4 rounded-lg">
+                    <h3 class="text-sm font-semibold text-gray-600">Último Egreso Registrado</h3>
+                    <p id="lastExpenseDisplay" class="text-2xl font-bold text-red-700">N/A</p>
+                    <p id="lastExpenseDate" class="text-xs text-gray-600">Fecha:</p>
+                </div>
+            </div>
+
+            <div class="card bg-white p-6 rounded-lg">
+                <h2 class="text-2xl font-bold mb-4 text-gray-800">Nueva Transacción</h2>
+                <form id="transactionForm">
+                    <div class="flex space-x-2 mb-4">
+                        <button type="button" id="typeIncome" onclick="selectType('income')" class="type-button flex-1 py-3 rounded-lg border-2 border-green-500 text-green-700 font-medium transition hover:bg-green-50">
+                            Ingreso
+                        </button>
+                        <button type="button" id="typeExpense" onclick="selectType('expense')" class="type-button flex-1 py-3 rounded-lg border-2 border-red-500 text-red-700 font-medium transition hover:bg-red-50">
+                            Egreso
+                        </button>
+                        <button type="button" id="typePromise" onclick="selectType('promise')" class="type-button flex-1 py-3 rounded-lg border-2 border-yellow-500 text-yellow-700 font-medium transition hover:bg-yellow-50">
+                            Promesa
+                        </button>
+                    </div>
+                    <input type="hidden" id="transactionType" required>
+
+                    <div class="flex flex-col md:flex-row md:space-x-4 space-y-4 md:space-y-0 mb-4">
+                        <div class="flex-grow">
+                            <label for="transactionDateOnly" class="block text-sm font-medium text-gray-700">Fecha de la Transacción (Registro)</label>
+                            <input type="date" id="transactionDateOnly" class="mt-1 block w-full rounded-lg border border-gray-300 p-3 shadow-sm focus:border-blue-500 focus:ring-blue-500" required>
+                        </div>
+                        <div class="md:w-1/3">
+                            <label for="transactionTime" class="block text-sm font-medium text-gray-700">Hora (Opcional)</label>
+                            <input type="time" id="transactionTime" class="mt-1 block w-full rounded-lg border border-gray-300 p-3 shadow-sm focus:border-blue-500 focus:ring-blue-500">
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col md:flex-row md:space-x-4 space-y-4 md:space-y-0 mb-4">
+                        <div class="flex-grow">
+                            <label for="name" class="block text-sm font-medium text-gray-700">Nombre/Cliente</label>
+                            <input type="text" id="name" class="mt-1 block w-full rounded-lg border border-gray-300 p-3 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Nombre de la persona o cliente">
+                        </div>
+                        <div class="md:w-1/3">
+                            <label for="amount" class="block text-sm font-medium text-gray-700">Monto</label>
+                            <input type="number" id="amount" step="0.01" min="0" class="mt-1 block w-full rounded-lg border border-gray-300 p-3 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Q 0.00" required>
+                        </div>
+                    </div>
+
+                    <div id="conceptField" style="display:none;">
+                        <label for="concept" class="block text-sm font-medium text-gray-700 mb-2">Concepto</label>
+                        <textarea id="concept" rows="2" class="mt-1 block w-full rounded-lg border border-gray-300 p-3 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Descripción breve de la transacción"></textarea>
+                    </div>
+
+                    <div id="expenseFields" style="display:none;">
+                        <div class="bg-red-50 border-l-4 border-red-500 p-4 mb-4 rounded">
+                            <h3 class="text-lg font-bold text-red-800 mb-3">Detalles de Egreso (Factura)</h3>
+                            
+                            <label class="block text-sm font-medium text-red-700 mb-2">Fuente de Fondos</label>
+                            <div class="flex space-x-4 mb-4">
+                                <label class="flex items-center cursor-pointer">
+                                    <input type="radio" name="fundSource" value="total" checked class="form-radio text-red-600 h-4 w-4 border-red-300">
+                                    <span class="ml-2 text-gray-700">💰 Capital Total</span>
+                                </label>
+                                <label class="flex items-center cursor-pointer">
+                                    <input type="radio" name="fundSource" value="cash" class="form-radio text-red-600 h-4 w-4 border-red-300">
+                                    <span class="ml-2 text-gray-700">💵 Caja Chica</span>
+                                </label>
+                            </div>
+
+                            <label for="invoiceNumber" class="block text-sm font-medium text-red-700 mb-2">Número de Factura y/o Concepto</label>
+                            <input type="text" id="invoiceNumber" class="mt-1 block w-full rounded-lg border border-red-300 p-3 bg-white" placeholder="Ejemplo: F-001234 o Compra de Suministros">
+                            
+                            <label class="block text-sm font-medium text-red-700 mb-2 mt-4">Adjuntar Factura (Opcional)</label>
+                            <input type="file" id="invoiceImage" accept="image/*" class="mt-1 block w-full rounded-lg border border-red-300 p-3 bg-white">
+                            <p id="compressingMsg" class="text-sm text-gray-500 mt-2" style="display:none;">Comprimiendo imagen...</p>
+                        </div>
+                    </div>
+
+                    <div id="promiseFields" style="display:none;">
+                        <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 mb-4 rounded">
+                            <h3 class="text-lg font-bold text-yellow-800 mb-3">Detalles de Promesa/Pendiente</h3>
+                            <label for="promiseDate" class="block text-sm font-medium text-yellow-700 mb-2">Fecha Estimada (Opcional)</label>
+                            <input type="date" id="promiseDate" class="mt-1 block w-full rounded-lg border border-yellow-300 p-3 bg-white">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition">
+                        Registrar
+                    </button>
+                </form>
+            </div>
+        </div>
+
+        <div id="smallCash" class="tab-content">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                <div class="card bg-white p-6 rounded-lg">
+                    <h2 class="text-2xl font-bold mb-4 text-gray-800">CONTROL DE CAJA</h2>
+                    <h3 class="text-lg font-semibold mb-4">Establecer Capital Inicial y Límite de Caja</h3>
+                    <form id="cashLimitForm">
+                        <label for="initialCashCapital" class="block text-sm font-medium text-gray-700 mb-2">Capital Inicial/Asignado:</label>
+                        <input type="number" id="initialCashCapital" step="0.01" class="w-full mb-4 p-3 border border-gray-300 rounded-lg" placeholder="Q 0.00">
+
+                        <label for="smallCashLimit" class="block text-sm font-medium text-gray-700 mb-2">Límite Establecido:</label>
+                        <input type="number" id="smallCashLimit" step="0.01" class="w-full mb-4 p-3 border border-gray-300 rounded-lg" placeholder="Q 0.00">
+
+                        <button type="submit" class="w-full bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700">
+                            Guardar Configuración
+                        </button>
+                    </form>
+
+                    <div class="mt-6 p-4 bg-gray-100 rounded-lg">
+                        <h3 class="text-lg font-bold mb-2">Estado Actual</h3>
+                        <p>Capital Inicial/Asignado: <span id="initialCapitalDisplay" class="font-bold">Q0.00</span></p>
+                        <p>Límite Establecido: <span id="limitDisplay" class="font-bold">Q0.00</span></p>
+                        <p>Movimiento Neto de Caja: <span id="netMovementDisplay" class="font-bold">Q0.00</span></p>
+                        <p>Saldo Restante de Caja: <span id="remainingCashDisplay" class="font-bold">Q0.00</span></p>
+                    </div>
+                </div>
+
+                <div class="card bg-white p-6 rounded-lg">
+                    <h2 class="text-2xl font-bold mb-4 text-gray-800">Transferir Fondos</h2>
+                    <p class="mb-4 text-gray-600">Selecciona la dirección de transferencia:</p>
+                    <div class="flex gap-4 mb-6">
+                        <button id="btnToCash" onclick="openTransferModal('toSmallCash')" class="flex-1 bg-purple-600 text-white font-bold py-3 rounded-lg hover:bg-purple-700 transition">
+                            Capital Total → Caja
+                        </button>
+                        <button id="btnToCapital" onclick="openTransferModal('toCapital')" class="flex-1 bg-indigo-600 text-white font-bold py-3 rounded-lg hover:bg-indigo-700 transition">
+                            Caja → Capital Total
+                        </button>
+                    </div>
+                    <div id="smallCashStatus" class="p-4 bg-blue-100 rounded-lg">
+                        <p class="font-semibold">Estado de Caja Chica:</p>
+                        <p id="smallCashValue">Cargando...</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card bg-white p-6 rounded-lg mb-6">
+                <h2 class="text-2xl font-bold mb-4 text-gray-800">Gestión de Datos y Almacenamiento</h2>
+                
+                <div class="storage-indicator mb-4">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <span>📊 Espacio de Imágenes</span>
+                        <span id="storageCount">0 de ~35 imágenes</span>
+                    </div>
+                    <div class="storage-bar">
+                        <div id="storageFill" class="storage-fill" style="width: 0%;"></div>
+                    </div>
+                </div>
+
+                <div class="flex flex-wrap gap-4 justify-center">
+                    <button onclick="exportData()" class="bg-green-600 text-white px-6 py-3 rounded-lg hover:bg-green-700">
+                        📥 Exportar Datos
+                    </button>
+                    <button onclick="document.getElementById('importFile').click()" class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700">
+                        📤 Importar Datos
+                    </button>
+                    <input type="file" id="importFile" accept=".json" style="display:none;" onchange="handleImport(event)">
+                    <button onclick="showClearConfirmation()" class="bg-red-600 text-white px-6 py-3 rounded-lg hover:bg-red-700">
+                        🗑️ Borrar Todo
+                    </button>
+                    <button onclick="openGlobalHelpModal()" class="bg-purple-600 text-white px-6 py-3 rounded-lg hover:bg-purple-700">
+                        ❓ Ayuda
+                    </button>
+                </div>
+            </div>
+
+            <div id="shareSection" class="share-section">
+                <h2 class="text-2xl font-bold mb-4">🔗 COMPARTIR DATOS</h2>
+                
+                <div class="mb-4">
+                    <p class="text-sm opacity-90 mb-3">Genera un enlace para compartir tus datos con otros. Ellos verán tus transacciones de manera instantánea (solo lectura).</p>
+                    
+                    <button onclick="generateShareURL()" class="w-full bg-white text-orange-600 font-bold py-3 rounded-lg hover:bg-orange-50 transition mb-3">
+                        🔗 Generar Enlace para Compartir
+                    </button>
+                    
+                    <div id="shareUrlContainer" style="display:none;">
+                        <p class="text-sm font-semibold mb-2">Tu enlace:</p>
+                        <div class="share-url-box">
+                            <span id="shareUrlText"></span>
+                        </div>
+                        <div class="flex gap-2">
+                            <button onclick="copyShareURL()" class="flex-1 bg-white text-orange-600 py-2 rounded-lg hover:bg-orange-50">
+                                📋 Copiar Enlace
+                            </button>
+                            <button onclick="hideShareURL()" class="flex-1 bg-orange-700 text-white py-2 rounded-lg hover:bg-orange-800">
+                                Cerrar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="text-xs opacity-75 mt-3">
+                    <p>💡 <strong>Nota:</strong> El enlace contiene todos los datos del perfil activo comprimidos.</p>
+                </div>
+            </div>
+
+            <div id="cloudSection" class="cloud-section">
+                <h2 class="text-2xl font-bold mb-4">☁️ BACKUP EN LA NUBE</h2>
+                
+                <div id="cloudDisconnected">
+                    <div class="flex items-center mb-4">
+                        <span class="text-4xl mr-3">⚪</span>
+                        <div>
+                            <p class="font-semibold">No conectado</p>
+                            <p class="text-sm opacity-90">Protege tus datos guardándolos en la nube</p>
+                        </div>
+                    </div>
+                    <button onclick="openCloudConfigModal()" class="w-full bg-white text-blue-600 font-bold py-3 rounded-lg hover:bg-blue-50 transition">
+                        🔗 Configurar Backup en la Nube
+                    </button>
+                </div>
+
+                <div id="cloudConnected" style="display:none;">
+                    <div class="flex items-center mb-4">
+                        <span class="text-4xl mr-3">✅</span>
+                        <div>
+                            <p class="font-semibold">Conectado a <span id="cloudProvider">Dropbox</span></p>
+                            <p class="text-sm opacity-90" id="cloudEmail">usuario@email.com</p>
+                        </div>
+                    </div>
+                    <div class="mb-4 text-sm opacity-90">
+                        <p>📅 Último backup: <span id="lastBackupTime">Nunca</span></p>
+                        <p>⚙️ Frecuencia: <span id="backupFrequency">Manual</span></p>
+                    </div>
+                    <div class="flex gap-3">
+                        <button onclick="saveToCloudNow()" class="flex-1 bg-white text-blue-600 font-bold py-3 rounded-lg hover:bg-blue-50 transition">
+                            ☁️ Guardar en la Nube Ahora
+                        </button>
+                        <button onclick="openCloudConfigModal()" class="flex-1 bg-blue-700 text-white font-bold py-3 rounded-lg hover:bg-blue-800 transition">
+                            ⚙️ Configuración
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div id="search" class="tab-content">
+            <div class="card bg-white p-6 rounded-lg">
+                <h2 class="text-2xl font-bold mb-4 text-gray-800">Editar / Buscar</h2>
+<div class="flex gap-4 mb-6 search-controls-mobile">
+    <select id="filterTransactionType" class="flex-1 p-3 border border-gray-300 rounded-lg">
+                        <option value="all">Todas las Transacciones</option>
+                        <option value="income">Solo Ingresos</option>
+                        <option value="expense">Solo Egresos</option>
+                        <option value="transfer">Solo Transferencias</option>
+                        <option value="pending_promise">Promesas Pendientes</option>
+                        <option value="completed_promise">Promesas Cumplidas</option>
+                    </select>
+                    <button onclick="filterTransactions()" class="bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700">
+                        Buscar
+                    </button>
+                </div>
+
+                <div class="mb-6">
+                    <label class="block mb-2 font-medium text-gray-700">Buscar por Número de Factura</label>
+                    <input type="text" id="searchInvoice" placeholder="Ingresa el número de factura" class="w-full p-3 border border-gray-300 rounded-lg">
+                </div>
+
+                <div id="transactionList"></div>
+            </div>
+        </div>
+
+        <div id="summary" class="tab-content">
+            <div class="card bg-white p-6 rounded-lg">
+                <h2 class="text-2xl font-bold mb-4 text-gray-800">Resúmenes Financieros</h2>
+                
+                <div class="flex flex-col md:flex-row gap-4 mb-6">
+                    <div class="flex-grow">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Periodo</label>
+                        <select id="summaryPeriod" class="w-full p-3 border border-gray-300 rounded-lg" onchange="generateSummary()">
+                            <option value="all">Todo el tiempo</option>
+                            <option value="week">Última semana</option>
+                            <option value="month" selected>Último mes</option>
+                            <option value="quarter">Último trimestre</option>
+                            <option value="semester">Último semestre</option>
+                            <option value="year">Último año</option>
+                        </select>
+                    </div>
+                    <div class="flex-grow">
+                        <label class="block text-sm font-medium text-gray-700 mb-2">Tipo</label>
+                        <select id="summaryType" class="w-full p-3 border border-gray-300 rounded-lg" onchange="generateSummary()">
+                            <option value="all" selected>Todos</option>
+                            <option value="income">Solo Ingresos</option>
+                            <option value="expense">Solo Egresos</option>
+                            <option value="promise">Solo Promesas</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div id="summaryContainer">
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                        <div class="summary-card">
+                            <h3>Total Ingresos</h3>
+                            <div class="value" id="summaryIncome">Q0.00</div>
+                            <div class="change" id="summaryIncomeChange"></div>
+                        </div>
+                        <div class="summary-card">
+                            <h3>Total Egresos</h3>
+                            <div class="value" id="summaryExpense">Q0.00</div>
+                            <div class="change" id="summaryExpenseChange"></div>
+                        </div>
+                        <div class="summary-card">
+                            <h3>Balance Neto</h3>
+                            <div class="value" id="summaryBalance">Q0.00</div>
+                            <div class="change" id="summaryBalanceChange"></div>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+                        <div class="card bg-gray-50 p-6 rounded-lg">
+                            <h3 class="text-lg font-bold mb-4">Estadísticas del Periodo</h3>
+                            <p class="mb-2">Total Transacciones: <span id="summaryTransactions" class="font-bold">0</span></p>
+                            <p class="mb-2">Promesas Pendientes: <span id="summaryPromisesPending" class="font-bold">0</span> (Q<span id="summaryPromisesPendingAmount">0.00</span>)</p>
+                            <p class="mb-2">Facturas con Imagen: <span id="summaryImagesCount" class="font-bold">0</span></p>
+                        </div>
+
+                        <div class="card bg-gray-50 p-6 rounded-lg">
+                            <h3 class="text-lg font-bold mb-4">Egresos por Fuente</h3>
+                            <p class="mb-2">💰 Capital Total: <span id="summaryExpenseTotal" class="font-bold">Q0.00</span> (<span id="summaryExpenseTotalPercent">0</span>%)</p>
+                            <p class="mb-2">💵 Caja Chica: <span id="summaryExpenseCash" class="font-bold">Q0.00</span> (<span id="summaryExpenseCashPercent">0</span>%)</p>
+                        </div>
+                    </div>
+
+                    <div class="card bg-gray-50 p-6 rounded-lg mb-6">
+                        <h3 class="text-lg font-bold mb-4">Top 5 Conceptos de Egresos</h3>
+                        <div id="topConceptsList"></div>
+                    </div>
+                </div>
+
+                <button onclick="exportSummaryAsImage()" class="w-full bg-gradient-to-r from-blue-600 to-purple-700 text-white font-bold py-3 rounded-lg hover:opacity-90 transition">
+                    📸 Compartir Resumen como Imagen
+                </button>
+            </div>
+        </div>
+    </main>
+</div>
+
+<!-- Toast de notificaciones -->
+<div id="toast" class="toast">
+    <div style="display: flex; align-items: center; gap: 12px;">
+        <span id="toastIcon" style="font-size: 24px;"></span>
+        <div>
+            <p id="toastTitle" class="font-bold"></p>
+            <p id="toastMessage" class="text-sm text-gray-600"></p>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de mensajes genérico -->
+<div id="messageModalOverlay" class="modal-overlay">
+    <div class="modal-content">
+        <h2 id="modalTitle" class="text-2xl font-bold mb-4"></h2>
+        <p id="modalMessage" class="text-gray-700 mb-6 whitespace-pre-line"></p>
+        <div id="modalButtons" class="flex gap-4">
+            <button id="modalCancelButton" class="flex-1 bg-gray-400 text-white px-4 py-2 rounded-lg hover:bg-gray-500">
+                Cancelar
+            </button>
+            <button id="modalAcceptButton" class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700">
+                Aceptar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Crear Perfil -->
+<div id="createProfileModal" class="modal-overlay">
+    <div class="modal-content">
+        <h2 class="text-2xl font-bold mb-4">Crear Nuevo Perfil <button onclick="closeCreateProfileModal()" class="float-right text-gray-400 hover:text-gray-600">✕</button></h2>
+        
+        <form id="createProfileForm">
+            <label class="block text-sm font-medium text-gray-700 mb-2">Nombre del Perfil *</label>
+            <input type="text" id="newProfileName" class="w-full p-3 border border-gray-300 rounded-lg mb-4" placeholder="Ej: Tienda Principal" required>
+            
+            <label class="block text-sm font-medium text-gray-700 mb-2">Selecciona un ícono</label>
+            <div class="profile-icon-selector" id="iconSelector">
+                <!-- Se llenan dinámicamente -->
+            </div>
+            
+            <label class="block text-sm font-medium text-gray-700 mb-2">Color</label>
+            <div class="profile-color-selector" id="colorSelector">
+                <!-- Se llenan dinámicamente -->
+            </div>
+            
+            <label class="block text-sm font-medium text-gray-700 mb-2">Capital Inicial (Opcional)</label>
+            <input type="number" id="newProfileCapital" step="0.01" class="w-full p-3 border border-gray-300 rounded-lg mb-4" placeholder="Q 0.00">
+            
+            <div class="flex gap-4">
+                <button type="button" onclick="closeCreateProfileModal()" class="flex-1 bg-gray-400 text-white py-3 rounded-lg hover:bg-gray-500">
+                    Cancelar
+                </button>
+                <button type="submit" class="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700">
+                    Crear Perfil
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Administrar Perfiles -->
+<div id="manageProfilesModal" class="modal-overlay">
+    <div class="modal-content">
+        <h2 class="text-2xl font-bold mb-4">Administrar Perfiles <button onclick="closeManageProfilesModal()" class="float-right text-gray-400 hover:text-gray-600">✕</button></h2>
+        
+        <p class="text-gray-600 mb-4">Tienes <span id="profileCountDisplay">0</span> perfil(es)</p>
+        
+        <div id="profilesManageList">
+            <!-- Se llenan dinámicamente -->
+        </div>
+        
+        <button onclick="openCreateProfileModal(); closeManageProfilesModal();" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 mt-4">
+            ➕ Crear Nuevo Perfil
+        </button>
+        
+        <button onclick="closeManageProfilesModal()" class="w-full bg-gray-300 text-gray-700 py-3 rounded-lg hover:bg-gray-400 mt-2">
+            Cerrar
+        </button>
+    </div>
+</div>
+
+<!-- Modal Editar Perfil -->
+<div id="editProfileModal" class="modal-overlay">
+    <div class="modal-content">
+        <h2 class="text-2xl font-bold mb-4">Editar Perfil <button onclick="closeEditProfileModal()" class="float-right text-gray-400 hover:text-gray-600">✕</button></h2>
+        
+        <form id="editProfileForm">
+            <input type="hidden" id="editProfileId">
+            
+            <label class="block text-sm font-medium text-gray-700 mb-2">Nombre del Perfil *</label>
+            <input type="text" id="editProfileName" class="w-full p-3 border border-gray-300 rounded-lg mb-4" required>
+            
+            <label class="block text-sm font-medium text-gray-700 mb-2">Ícono</label>
+            <div class="profile-icon-selector" id="editIconSelector">
+                <!-- Se llenan dinámicamente -->
+            </div>
+            
+            <label class="block text-sm font-medium text-gray-700 mb-2">Color</label>
+            <div class="profile-color-selector" id="editColorSelector">
+                <!-- Se llenan dinámicamente -->
+            </div>
+            
+            <div class="flex gap-4 mt-4">
+                <button type="button" onclick="closeEditProfileModal()" class="flex-1 bg-gray-400 text-white py-3 rounded-lg hover:bg-gray-500">
+                    Cancelar
+                </button>
+                <button type="submit" class="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700">
+                    Guardar Cambios
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Resto de modales (Cloud Config, Edit Transaction, Transfer, etc.) -->
+<div id="cloudConfigModal" class="modal-overlay">
+    <div class="modal-content">
+        <h2 class="text-2xl font-bold mb-4">☁️ Configurar Backup en la Nube <button onclick="closeCloudConfigModal()" class="float-right text-gray-400 hover:text-gray-600">✕</button></h2>
+        
+        <div id="cloudStep1" class="cloud-step">
+            <p class="text-gray-600 mb-4">Paso 1 de 3: Selecciona tu proveedor</p>
+            
+            <div class="provider-card" onclick="selectProvider('dropbox')">
+                <div class="flex items-center justify-between">
+                    <div class="flex items-center gap-4">
+                        <span style="font-size: 48px;">📦</span>
+                        <div>
+                            <h3 class="font-bold text-lg">Dropbox</h3>
+                            <p class="text-sm text-gray-600">✓ Recomendado para empezar</p>
+                            <p class="text-sm text-gray-600">• Fácil de configurar</p>
+                            <p class="text-sm text-gray-600">• 2GB gratis</p>
+                        </div>
+                    </div>
+                </div>
+                <button class="mt-4 w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700">
+                    Seleccionar Dropbox
+                </button>
+            </div>
+
+            <button onclick="closeCloudConfigModal()" class="w-full mt-4 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400">
+                Cancelar
+            </button>
+        </div>
+
+        <div id="cloudStep2" class="cloud-step" style="display:none;">
+            <p class="text-gray-600 mb-4">Paso 2 de 3: Conectar tu cuenta de Dropbox</p>
+            
+            <div class="text-center p-8 bg-gray-50 rounded-lg mb-4">
+                <span style="font-size: 80px;">📦</span>
+                <p class="mt-4 text-gray-700">Al hacer clic, se abrirá una ventana donde autorizarás a esta aplicación para guardar archivos en tu Dropbox.</p>
+            </div>
+
+            <button onclick="connectDropbox()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 mb-2">
+                🔐 Conectar con Dropbox
+            </button>
+            
+            <button onclick="showCloudStep(1)" class="w-full bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400">
+                ← Atrás
+            </button>
+        </div>
+
+        <div id="cloudStep3" class="cloud-step" style="display:none;">
+            <p class="text-gray-600 mb-4">Paso 3 de 3: Configuración completada ✓</p>
+            
+            <div class="bg-green-50 border-l-4 border-green-500 p-4 mb-4 rounded">
+                <p class="font-semibold text-green-800">✅ Conectado exitosamente</p>
+                <p class="text-sm text-green-700 mt-2">👤 <span id="connectedEmail"></span></p>
+                <p class="text-sm text-green-700">📦 Dropbox</p>
+            </div>
+
+            <label class="block text-sm font-medium text-gray-700 mb-2">Frecuencia de backup automático:</label>
+            <select id="backupFrequencySelect" class="w-full p-3 border border-gray-300 rounded-lg mb-4">
+                <option value="manual" selected>Manual (solo cuando yo decida)</option>
+                <option value="daily">Diario - Cada 24 horas</option>
+                <option value="weekly">Semanal - Cada lunes</option>
+                <option value="monthly">Mensual - Primer día del mes</option>
+            </select>
+
+            <button onclick="saveCloudConfig()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 mb-2">
+                💾 Guardar Configuración
+            </button>
+            
+            <button onclick="closeCloudConfigModal()" class="w-full bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400">
+                Cancelar
+            </button>
+        </div>
+
+        <div id="cloudStepManage" class="cloud-step" style="display:none;">
+            <div class="bg-green-50 border-l-4 border-green-500 p-4 mb-4 rounded">
+                <p class="font-semibold text-green-800">✅ Dropbox</p>
+                <p class="text-sm text-green-700 mt-2">👤 <span id="manageEmail"></span></p>
+                <button onclick="disconnectCloud()" class="mt-3 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 text-sm">
+                    🔓 Desconectar
+                </button>
+            </div>
+
+            <label class="block text-sm font-medium text-gray-700 mb-2">Frecuencia de Backup</label>
+            <select id="manageFrequencySelect" class="w-full p-3 border border-gray-300 rounded-lg mb-4">
+                <option value="manual">Manual (solo cuando yo decida)</option>
+                <option value="daily">Diario - Cada 24 horas</option>
+                <option value="weekly">Semanal - Cada lunes</option>
+                <option value="monthly">Mensual - Primer día del mes</option>
+            </select>
+
+            <h3 class="text-lg font-bold mb-3">Historial de Backups</h3>
+            <div id="backupHistoryList" class="mb-4">
+                <p class="text-gray-500 text-sm">Cargando...</p>
+            </div>
+
+            <button onclick="updateCloudConfig()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 mb-2">
+                💾 Guardar Cambios
+            </button>
+            
+            <button onclick="closeCloudConfigModal()" class="w-full bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400">
+                Cerrar
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Ayuda -->
+<div id="globalHelpModalOverlay" class="modal-overlay">
+    <div class="modal-content">
+        <h2 class="text-2xl font-bold mb-4">Guía de Uso del Sistema</h2>
+        <div id="helpContent" class="text-gray-700 space-y-4">
+            <p><strong>Perfiles:</strong> Crea múltiples perfiles para diferentes negocios o proyectos. Cada perfil tiene sus propios datos separados.</p>
+            <p><strong>Registro:</strong> Usa los botones de colores para seleccionar tipo (Ingreso/Egreso/Promesa). Para egresos, indica si sale del Capital Total o Caja Chica.</p>
+            <p><strong>Compartir con URL:</strong> Genera un enlace con todos los datos del perfil activo comprimidos. Otros pueden importarlos automáticamente haciendo clic en el enlace.</p>
+            <p><strong>Backup en la Nube:</strong> Conecta tu Dropbox para guardar copias de seguridad de TODOS tus perfiles automáticas o manuales.</p>
+            <p><strong>Exportar:</strong> Si tienes un solo perfil, exporta directamente. Con múltiples perfiles, elige exportar solo el activo o todos juntos.</p>
+        </div>
+        <button onclick="closeGlobalHelpModal()" class="mt-6 w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700">
+            Cerrar Ayuda
+        </button>
+    </div>
+</div>
+
+<!-- Modal Editar Transacción -->
+<div id="editModalOverlay" class="modal-overlay">
+    <div class="modal-content">
+        <h2 id="editModalTitle" class="text-2xl font-bold mb-4">Editar Transacción</h2>
+        <form id="editTransactionForm">
+            <input type="hidden" id="editTransactionId">
+            
+            <label class="block mb-2 font-medium text-gray-700">Tipo</label>
+            <p id="editTypeInfo" class="mb-4 p-3 bg-gray-100 rounded-lg"></p>
+
+            <div class="flex flex-col md:flex-row md:space-x-4 space-y-4 md:space-y-0 mb-4">
+                <div class="flex-grow">
+                    <label for="editName" class="block text-sm font-medium text-gray-700">Nombre/Cliente</label>
+                    <input type="text" id="editName" class="mt-1 block w-full rounded-lg border border-gray-300 p-3">
+                </div>
+                <div class="md:w-1/3">
+                    <label for="editAmount" class="block text-sm font-medium text-gray-700">Monto (Q)</label>
+                    <input type="number" id="editAmount" step="0.01" class="mt-1 block w-full rounded-lg border border-gray-300 p-3" required>
+                </div>
+            </div>
+
+            <div id="editConceptField" style="display:none;">
+                <label for="editConcept" class="block text-sm font-medium text-gray-700 mb-2">Concepto</label>
+                <textarea id="editConcept" rows="2" class="mt-1 block w-full rounded-lg border border-gray-300 p-3"></textarea>
+            </div>
+
+            <div id="editExpenseFields" style="display:none;">
+                <div class="bg-red-50 border-l-4 border-red-500 p-4 mb-4 rounded">
+                    <label class="block text-sm font-medium text-red-700 mb-2">Fuente de Fondos</label>
+                    <div class="flex space-x-4 mb-4">
+                        <label class="flex items-center cursor-pointer">
+                            <input type="radio" name="editFundSource" value="total" class="form-radio text-red-600 h-4 w-4 border-red-300">
+                            <span class="ml-2 text-gray-700">💰 Capital Total</span>
+                        </label>
+                        <label class="flex items-center cursor-pointer">
+                            <input type="radio" name="editFundSource" value="cash" class="form-radio text-red-600 h-4 w-4 border-red-300">
+                            <span class="ml-2 text-gray-700">💵 Caja Chica</span>
+                        </label>
+                    </div>
+
+                    <label for="editInvoiceNumber" class="block text-sm font-medium text-red-700 mb-2">Número de Factura</label>
+                    <input type="text" id="editInvoiceNumber" class="mt-1 block w-full rounded-lg border border-red-300 p-3 bg-white">
+
+                    <label class="block text-sm font-medium text-red-700 mb-2 mt-4">Imagen de Factura</label>
+                    <div id="editInvoiceImageContainer"></div>
+                    <input type="file" id="editInvoiceImageInput" accept="image/*" style="display:none;">
+                    <p id="editCompressingMsg" class="text-sm text-gray-500 mt-2" style="display:none;">Comprimiendo imagen...</p>
+                </div>
+            </div>
+
+            <div id="editPromiseFields" style="display:none;">
+                <div class="bg-yellow-50 border-l-4 border-yellow-500 p-4 mb-4 rounded">
+                    <label for="editPromiseDate" class="block text-sm font-medium text-yellow-700 mb-2">Fecha de Promesa</label>
+                    <input type="date" id="editPromiseDate" class="mt-1 block w-full rounded-lg border border-yellow-300 p-3 bg-white">
+                </div>
+            </div>
+
+            <div class="flex gap-4 mt-6">
+                <button type="button" onclick="closeEditModal()" class="flex-1 bg-gray-400 text-white py-3 rounded-lg hover:bg-gray-500">
+                    Cancelar
+                </button>
+                <button type="submit" id="saveEditButton" class="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700">
+                    Guardar Cambios
+                </button>
+            </div>
+        </form>
+
+        <div id="promiseStatusActions" style="display:none;" class="mt-4 p-4 bg-yellow-50 rounded-lg">
+            <p class="font-semibold mb-2">Estado de Promesa:</p>
+            <div class="flex gap-2">
+                <button id="markPromiseCompleted" class="flex-1 bg-green-600 text-white py-2 rounded-lg hover:bg-green-700">
+                    Marcar como Cumplida
+                </button>
+                <button id="markPromisePending" class="flex-1 bg-yellow-600 text-white py-2 rounded-lg hover:bg-yellow-700">
+                    Marcar como Pendiente
+                </button>
+            </div>
+        </div>
+
+        <div class="danger-zone">
+            <h3 class="text-lg font-bold text-red-700 mb-3">Zona de Peligro</h3>
+            <button type="button" onclick="promptDeleteFromEdit()" class="w-full bg-red-600 text-white font-bold py-3 rounded-lg hover:bg-red-700 transition">
+                🗑️ Eliminar esta Transacción
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Transferencia -->
+<div id="transferModalOverlay" class="modal-overlay">
+    <div class="modal-content">
+        <h2 id="transferModalTitle" class="text-2xl font-bold mb-4">Transferir Fondos</h2>
+        <form id="transferForm">
+            <p id="transferDirection" class="mb-4 p-3 bg-blue-100 rounded-lg"></p>
+            
+            <label for="transferAmount" class="block text-sm font-medium text-gray-700 mb-2">Monto a Transferir (Q)</label>
+            <input type="number" id="transferAmount" step="0.01" class="w-full mb-4 p-3 border border-gray-300 rounded-lg" placeholder="Q 0.00" required>
+
+            <div class="flex gap-4">
+                <button type="button" onclick="closeTransferModal()" class="flex-1 bg-gray-400 text-white py-3 rounded-lg hover:bg-gray-500">
+                    Cancelar
+                </button>
+                <button type="submit" id="executeTransferButton" class="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700">
+                    Ejecutar Transferencia
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Overlay imagen completa -->
+<div id="fullscreenImageOverlay" class="fullscreen-overlay" onclick="closeFullscreenImage()">
+    <img id="fullscreenImage" src="" alt="Imagen completa">
+</div>
+
+<script>
+// ============================================
+// SISTEMA DE PERFILES - NUEVA FUNCIONALIDAD
+// ============================================
+
+const PROFILE_ICONS = ['📊', '🍕', '🏪', '💼', '🏭', '🏗️', '🚚', '📱', '💻', '🏦', '🏥', '🎓', '🎨', '🎵', '⚽'];
+const PROFILE_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#6366f1', '#14b8a6'];
+
+class ProfileManager {
+    constructor() {
+        this.profiles = [];
+        this.activeProfileId = null;
+        this.storageKey = 'financeProfiles';
+        this.load();
+    }
+    
+    load() {
+        const data = localStorage.getItem(this.storageKey);
+        if (data) {
+            try {
+                const parsed = JSON.parse(data);
+                this.profiles = parsed.profiles || [];
+                this.activeProfileId = parsed.activeProfile;
+            } catch (e) {
+                console.error('Error al cargar perfiles:', e);
+                this.createDefaultProfile();
+            }
+        }
+        
+        if (this.profiles.length === 0) {
+            this.createDefaultProfile();
+        }
+    }
+    
+    save() {
+        const data = {
+            profiles: this.profiles,
+            activeProfile: this.activeProfileId,
+            version: '3.0'
+        };
+        localStorage.setItem(this.storageKey, JSON.stringify(data));
+    }
+    
+    createDefaultProfile() {
+        const defaultProfile = {
+            id: 'profile_' + Date.now(),
+            name: 'Mi Negocio',
+            icon: '📊',
+            color: '#3b82f6',
+            createdAt: new Date().toISOString(),
+            transactions: [],
+            smallCashLimit: 0,
+            initialCashCapital: 0
+        };
+        
+        this.profiles.push(defaultProfile);
+        this.activeProfileId = defaultProfile.id;
+        this.save();
+    }
+    
+    createProfile(name, icon, color, initialCapital = 0) {
+        const newProfile = {
+            id: 'profile_' + Date.now(),
+            name: name,
+            icon: icon,
+            color: color,
+            createdAt: new Date().toISOString(),
+            transactions: [],
+            smallCashLimit: 0,
+            initialCashCapital: parseFloat(initialCapital) || 0
+        };
+        
+        this.profiles.push(newProfile);
+        this.save();
+        return newProfile.id;
+    }
+    
+    switchProfile(profileId) {
+        const profile = this.profiles.find(p => p.id === profileId);
+        if (profile) {
+            // Guardar datos del perfil actual
+            this.updateActiveProfile();
+            
+            // Cambiar al nuevo perfil
+            this.activeProfileId = profileId;
+            this.save();
+            
+            // Cargar datos del nuevo perfil
+            transactions = profile.transactions || [];
+            smallCashLimit = profile.smallCashLimit || 0;
+            initialCashCapital = profile.initialCashCapital || 0;
+            
+            updateProfileUI();
+            saveDataAndRefresh();
+            return true;
+        }
+        return false;
+    }
+    
+    getActiveProfile() {
+        return this.profiles.find(p => p.id === this.activeProfileId);
+    }
+    
+    updateActiveProfile() {
+        const profile = this.getActiveProfile();
+        if (profile) {
+            profile.transactions = transactions;
+            profile.smallCashLimit = smallCashLimit;
+            profile.initialCashCapital = initialCashCapital;
+            profile.lastModified = new Date().toISOString();
+            this.save();
+        }
+    }
+    
+    updateProfile(profileId, updates) {
+        const profile = this.profiles.find(p => p.id === profileId);
+        if (profile) {
+            Object.assign(profile, updates);
+            this.save();
+            
+            // Si es el perfil activo, actualizar UI
+            if (profileId === this.activeProfileId) {
+                updateProfileUI();
+            }
+            return true;
+        }
+        return false;
+    }
+    
+    deleteProfile(profileId) {
+        if (this.profiles.length === 1) {
+            return false; // No se puede borrar el único perfil
+        }
+        
+        const index = this.profiles.findIndex(p => p.id === profileId);
+        if (index === -1) return false;
+        
+        this.profiles.splice(index, 1);
+        
+        // Si borró el activo, activar otro
+        if (this.activeProfileId === profileId) {
+            this.activeProfileId = this.profiles[0].id;
+            this.switchProfile(this.activeProfileId);
+        }
+        
+        this.save();
+        return true;
+    }
+    
+    getProfileById(profileId) {
+        return this.profiles.find(p => p.id === profileId);
+    }
+    
+    getAllProfiles() {
+        return this.profiles;
+    }
+}
+
+// Instanciar gestor de perfiles
+const profileManager = new ProfileManager();
+
+// ============================================
+// VARIABLES GLOBALES (Código Existente)
+// ============================================
+
+const LOCAL_STORAGE_KEY = 'financeTransactions';
+const LOCAL_STORAGE_CASH_KEY = 'smallCashLimit';
+const LOCAL_STORAGE_INITIAL_CASH_KEY = 'initialCashCapital';
+const LOCAL_STORAGE_CLOUD_KEY = 'cloudConfig';
+const MAX_IMAGES_ESTIMATE = 35;
+
+const DROPBOX_APP_KEY = 'oiyxgm12mt088p5';
+const REDIRECT_URI = 'http://localhost';
+
+let transactions = [];
+let smallCashLimit = 0;
+let initialCashCapital = 0;
+let currentEditingTransaction = null;
+let currentTransferDirection = null;
+let cloudConfig = null;
+let dropboxClient = null;
+let currentShareURL = '';
+let selectedIcon = '📊';
+let selectedColor = '#3b82f6';
+
+// ============================================
+// FUNCIONES UI DE PERFILES
+// ============================================
+
+function updateProfileUI() {
+    const profile = profileManager.getActiveProfile();
+    if (profile) {
+        document.getElementById('currentProfileIcon').textContent = profile.icon;
+        document.getElementById('currentProfileName').textContent = profile.name;
+        
+        // Actualizar dropdown
+        renderProfileDropdown();
+    }
+}
+
+function renderProfileDropdown() {
+    const profileList = document.getElementById('profileList');
+    const profiles = profileManager.getAllProfiles();
+    const activeId = profileManager.activeProfileId;
+    
+    profileList.innerHTML = profiles.map(p => `
+        <div class="profile-dropdown-item ${p.id === activeId ? 'active' : ''}" onclick="switchToProfile('${p.id}')">
+            <span style="font-size: 24px;">${p.icon}</span>
+            <div class="flex-1">
+                <div class="font-medium">${p.name}</div>
+                <div class="text-xs text-gray-500">${p.transactions ? p.transactions.length : 0} transacciones</div>
+            </div>
+            ${p.id === activeId ? '<span class="text-blue-600">✓</span>' : ''}
+        </div>
+    `).join('');
+}
+
+function toggleProfileDropdown() {
+    const dropdown = document.getElementById('profileDropdown');
+    dropdown.classList.toggle('active');
+    
+    // Cerrar al hacer clic fuera
+    if (dropdown.classList.contains('active')) {
+        setTimeout(() => {
+            document.addEventListener('click', closeDropdownOnClickOutside);
+        }, 100);
+    }
+}
+
+function closeDropdownOnClickOutside(e) {
+    const dropdown = document.getElementById('profileDropdown');
+    const selector = document.querySelector('.profile-selector');
+    
+    if (!selector.contains(e.target)) {
+        dropdown.classList.remove('active');
+        document.removeEventListener('click', closeDropdownOnClickOutside);
+    }
+}
+
+function switchToProfile(profileId) {
+    const dropdown = document.getElementById('profileDropdown');
+    dropdown.classList.remove('active');
+    
+    if (profileId !== profileManager.activeProfileId) {
+        profileManager.switchProfile(profileId);
+        showToast('✅', 'Perfil cambiado', `Ahora estás en: ${profileManager.getActiveProfile().name}`);
+    }
+}
+
+function openCreateProfileModal() {
+    const dropdown = document.getElementById('profileDropdown');
+    dropdown.classList.remove('active');
+    
+    // Resetear formulario
+    document.getElementById('newProfileName').value = '';
+    document.getElementById('newProfileCapital').value = '';
+    selectedIcon = '📊';
+    selectedColor = '#3b82f6';
+    
+    // Render icon selector
+    renderIconSelector('iconSelector', selectedIcon);
+    renderColorSelector('colorSelector', selectedColor);
+    
+    document.getElementById('createProfileModal').classList.add('active');
+}
+
+function closeCreateProfileModal() {
+    document.getElementById('createProfileModal').classList.remove('active');
+}
+
+function renderIconSelector(containerId, selectedIconValue) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = PROFILE_ICONS.map(icon => `
+        <div class="profile-icon-option ${icon === selectedIconValue ? 'selected' : ''}" onclick="selectIcon('${icon}', '${containerId}')">
+            ${icon}
+        </div>
+    `).join('');
+}
+
+function renderColorSelector(containerId, selectedColorValue) {
+    const container = document.getElementById(containerId);
+    container.innerHTML = PROFILE_COLORS.map(color => `
+        <div class="profile-color-option ${color === selectedColorValue ? 'selected' : ''}" 
+             style="background-color: ${color};" 
+             onclick="selectColor('${color}', '${containerId}')">
+        </div>
+    `).join('');
+}
+
+function selectIcon(icon, containerId) {
+    selectedIcon = icon;
+    renderIconSelector(containerId, icon);
+}
+
+function selectColor(color, containerId) {
+    selectedColor = color;
+    renderColorSelector(containerId, color);
+}
+
+function openManageProfilesModal() {
+    const dropdown = document.getElementById('profileDropdown');
+    dropdown.classList.remove('active');
+    
+    renderManageProfiles();
+    document.getElementById('manageProfilesModal').classList.add('active');
+}
+
+function closeManageProfilesModal() {
+    document.getElementById('manageProfilesModal').classList.remove('active');
+}
+
+function renderManageProfiles() {
+    const profiles = profileManager.getAllProfiles();
+    const activeId = profileManager.activeProfileId;
+    
+    document.getElementById('profileCountDisplay').textContent = profiles.length;
+    
+    const listContainer = document.getElementById('profilesManageList');
+    listContainer.innerHTML = profiles.map(profile => {
+        const capital = calculateProfileCapital(profile);
+        const transCount = profile.transactions ? profile.transactions.length : 0;
+        const createdDate = new Date(profile.createdAt).toLocaleDateString('es-GT');
+        
+        return `
+            <div class="profile-card ${profile.id === activeId ? 'active-profile' : ''}">
+                <div class="flex items-start justify-between mb-3">
+                    <div class="flex items-center gap-3">
+                        <span style="font-size: 32px;">${profile.icon}</span>
+                        <div>
+                            <h3 class="font-bold text-lg">${profile.name}</h3>
+                            ${profile.id === activeId ? '<span class="text-xs bg-blue-100 text-blue-700 px-2 py-1 rounded">Activo</span>' : ''}
+                        </div>
+                    </div>
+                </div>
+                <div class="text-sm text-gray-600 mb-3">
+                    <p>💰 Capital: Q${capital.toFixed(2)}</p>
+                    <p>📊 Transacciones: ${transCount}</p>
+                    <p>📅 Creado: ${createdDate}</p>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="openEditProfileModal('${profile.id}')" class="flex-1 bg-blue-500 text-white py-2 px-3 rounded text-sm hover:bg-blue-600">
+                        ✏️ Editar
+                    </button>
+                    <button onclick="exportProfileData('${profile.id}')" class="flex-1 bg-green-500 text-white py-2 px-3 rounded text-sm hover:bg-green-600">
+                        📥 Exportar
+                    </button>
+                    <button onclick="confirmDeleteProfile('${profile.id}')" class="flex-1 bg-red-500 text-white py-2 px-3 rounded text-sm hover:bg-red-600">
+                        🗑️ Eliminar
+                    </button>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function calculateProfileCapital(profile) {
+    if (!profile.transactions) return 0;
+    
+    let totalIncome = 0;
+    let totalExpense = 0;
+    
+    profile.transactions.forEach(t => {
+        if (t.type === 'income') {
+            totalIncome += parseFloat(t.amount) || 0;
+        } else if (t.type === 'expense' && t.fundSource === 'total') {
+            totalExpense += parseFloat(t.amount) || 0;
+        } else if (t.type === 'promise' && t.promiseStatus === 'completed') {
+            totalIncome += parseFloat(t.amount) || 0;
+        } else if (t.type === 'transfer-in') {
+            totalIncome += parseFloat(t.amount) || 0;
+        } else if (t.type === 'transfer-out') {
+            totalExpense += parseFloat(t.amount) || 0;
+        }
+    });
+    
+    return totalIncome - totalExpense;
+}
+
+function openEditProfileModal(profileId) {
+    const profile = profileManager.getProfileById(profileId);
+    if (!profile) return;
+    
+    document.getElementById('editProfileId').value = profileId;
+    document.getElementById('editProfileName').value = profile.name;
+    
+    selectedIcon = profile.icon;
+    selectedColor = profile.color;
+    
+    renderIconSelector('editIconSelector', selectedIcon);
+    renderColorSelector('editColorSelector', selectedColor);
+    
+    closeManageProfilesModal();
+    document.getElementById('editProfileModal').classList.add('active');
+}
+
+function closeEditProfileModal() {
+    document.getElementById('editProfileModal').classList.remove('active');
+}
+
+function exportProfileData(profileId) {
+    const profile = profileManager.getProfileById(profileId);
+    if (!profile) return;
+    
+    const data = {
+        profileName: profile.name,
+        icon: profile.icon,
+        color: profile.color,
+        transactions: profile.transactions || [],
+        smallCashLimit: profile.smallCashLimit || 0,
+        initialCashCapital: profile.initialCashCapital || 0,
+        exportDate: new Date().toISOString(),
+        exportType: 'single-profile'
+    };
+    
+    const fileName = `${sanitizeFileName(profile.name)}_${getCurrentDateLocal()}.json`;
+    downloadJSON(data, fileName);
+    
+    showToast('✅', 'Exportado', `${profile.name} guardado`);
+}
+
+function confirmDeleteProfile(profileId) {
+    const profile = profileManager.getProfileById(profileId);
+    if (!profile) return;
+    
+    // Protección: no eliminar único perfil
+    if (profileManager.profiles.length === 1) {
+        showCustomModal(
+            '⚠️ No se puede eliminar',
+            'Este es tu único perfil. Necesitas al menos un perfil para usar la aplicación. Crea otro perfil primero.',
+            null
+        );
+        return;
+    }
+    
+    const transCount = profile.transactions ? profile.transactions.length : 0;
+    const capital = calculateProfileCapital(profile);
+    
+    const message = `¿Estás seguro de eliminar el perfil?
+
+${profile.icon} ${profile.name}
+
+Se perderán:
+• ${transCount} transacciones
+• Capital: Q${capital.toFixed(2)}
+• Configuración de caja
+• Facturas con imágenes
+
+⚠️ Esta acción NO se puede deshacer
+
+✅ Se exportará automáticamente antes de eliminar como backup de seguridad`;
+    
+    showCustomModal(
+        '⚠️ Eliminar Perfil',
+        message,
+        () => deleteProfileWithBackup(profileId)
+    );
+}
+
+function deleteProfileWithBackup(profileId) {
+    const profile = profileManager.getProfileById(profileId);
+    if (!profile) return;
+    
+    // Exportar automáticamente
+    exportProfileData(profileId);
+    
+    // Esperar un momento y mostrar confirmación final
+    setTimeout(() => {
+        showFinalDeleteConfirmation(profileId, profile);
+    }, 500);
+}
+
+function showFinalDeleteConfirmation(profileId, profile) {
+    const modalOverlay = document.getElementById('messageModalOverlay');
+    const modalContent = modalOverlay.querySelector('.modal-content');
+    
+    modalContent.innerHTML = `
+        <h2 class="text-2xl font-bold mb-4">⚠️ CONFIRMACIÓN FINAL</h2>
+        
+        <div class="bg-green-50 border-l-4 border-green-500 p-4 mb-4">
+            <p class="text-sm">✅ Backup guardado:</p>
+            <p class="text-sm font-bold">📄 ${sanitizeFileName(profile.name)}_${getCurrentDateLocal()}.json</p>
+        </div>
+        
+        <div class="bg-red-50 border-l-4 border-red-500 p-4 mb-4">
+            <p class="font-bold text-red-800 mb-2">⚠️ ÚLTIMA ADVERTENCIA</p>
+            <p class="text-sm">¿Confirmas que deseas eliminar permanentemente el perfil "${profile.name}"?</p>
+            <p class="text-sm mt-2">Esta acción es IRREVERSIBLE.</p>
+        </div>
+        
+        <label class="block text-sm font-medium mb-2">Para confirmar, escribe el nombre del perfil:</label>
+        <input type="text" id="confirmProfileName" class="w-full p-3 border border-gray-300 rounded-lg mb-4" placeholder="${profile.name}">
+        
+        <div class="flex gap-4">
+            <button onclick="closeMessageModal()" class="flex-1 bg-gray-400 text-white py-3 rounded-lg hover:bg-gray-500">
+                Cancelar
+            </button>
+            <button id="confirmDeleteBtn" disabled class="flex-1 bg-red-600 text-white py-3 rounded-lg hover:bg-red-700 disabled:bg-gray-300 disabled:cursor-not-allowed">
+                ELIMINAR DEFINITIVAMENTE
+            </button>
+        </div>
+    `;
+    
+    modalOverlay.classList.add('active');
+    
+    // Validar input
+    const input = document.getElementById('confirmProfileName');
+    const confirmBtn = document.getElementById('confirmDeleteBtn');
+    
+    input.addEventListener('input', (e) => {
+        if (e.target.value === profile.name) {
+            confirmBtn.disabled = false;
+            confirmBtn.onclick = () => executeDeleteProfile(profileId);
+        } else {
+            confirmBtn.disabled = true;
+        }
+    });
+}
+
+function executeDeleteProfile(profileId) {
+    const deleted = profileManager.deleteProfile(profileId);
+    
+    if (deleted) {
+        closeMessageModal();
+        renderManageProfiles();
+        showToast('✅', 'Eliminado', 'Perfil eliminado correctamente');
+    } else {
+        showToast('❌', 'Error', 'No se pudo eliminar el perfil');
+    }
+}
+
+function closeMessageModal() {
+    document.getElementById('messageModalOverlay').classList.remove('active');
+}
+
+// ============================================
+// EVENTOS DE FORMULARIOS DE PERFILES
+// ============================================
+
+document.getElementById('createProfileForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const name = document.getElementById('newProfileName').value.trim();
+    const capital = document.getElementById('newProfileCapital').value;
+    
+    if (!name) {
+        showToast('❌', 'Error', 'El nombre es requerido');
+        return;
+    }
+    
+    const profileId = profileManager.createProfile(name, selectedIcon, selectedColor, capital);
+    profileManager.switchProfile(profileId);
+    
+    closeCreateProfileModal();
+    showToast('✅', 'Perfil creado', `${name} creado exitosamente`);
+});
+
+document.getElementById('editProfileForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const profileId = document.getElementById('editProfileId').value;
+    const name = document.getElementById('editProfileName').value.trim();
+    
+    if (!name) {
+        showToast('❌', 'Error', 'El nombre es requerido');
+        return;
+    }
+    
+    const updated = profileManager.updateProfile(profileId, {
+        name: name,
+        icon: selectedIcon,
+        color: selectedColor
+    });
+    
+    if (updated) {
+        closeEditProfileModal();
+        openManageProfilesModal();
+        showToast('✅', 'Actualizado', 'Perfil actualizado correctamente');
+    }
+});
+
+// ============================================
+// MODIFICACIONES A FUNCIONES EXISTENTES
+// ============================================
+
+function exportData() {
+    const profileCount = profileManager.profiles.length;
+    
+    // Si solo hay 1 perfil, exportar directamente
+    if (profileCount === 1) {
+        exportSingleProfile();
+        return;
+    }
+    
+    // Si hay múltiples perfiles, mostrar modal de opciones
+    showExportOptionsModal();
+}
+
+function exportSingleProfile() {
+    const profile = profileManager.getActiveProfile();
+    
+    const data = {
+        profileName: profile.name,
+        icon: profile.icon,
+        color: profile.color,
+        transactions: profile.transactions || [],
+        smallCashLimit: profile.smallCashLimit || 0,
+        initialCashCapital: profile.initialCashCapital || 0,
+        exportDate: new Date().toISOString(),
+        exportType: 'single-profile'
+    };
+    
+    const fileName = `${sanitizeFileName(profile.name)}_${getCurrentDateLocal()}.json`;
+    downloadJSON(data, fileName);
+    
+    showToast('✅', 'Exportado', `${profile.name} guardado`);
+}
+
+function exportAllProfiles() {
+    // Actualizar perfil activo antes de exportar
+    profileManager.updateActiveProfile();
+    
+    const data = {
+        profiles: profileManager.profiles,
+        activeProfile: profileManager.activeProfileId,
+        exportDate: new Date().toISOString(),
+        exportType: 'all-profiles',
+        version: '3.0'
+    };
+    
+    const fileName = `todos-perfiles_${getCurrentDateLocal()}.json`;
+    downloadJSON(data, fileName);
+    
+    showToast('✅', 'Exportado', `${profileManager.profiles.length} perfiles guardados`);
+}
+
+function showExportOptionsModal() {
+    const profile = profileManager.getActiveProfile();
+    const profileCount = profileManager.profiles.length;
+    const transCount = profile.transactions ? profile.transactions.length : 0;
+    const capital = calculateProfileCapital(profile);
+    
+    let totalTrans = 0;
+    let totalCapital = 0;
+    profileManager.profiles.forEach(p => {
+        totalTrans += p.transactions ? p.transactions.length : 0;
+        totalCapital += calculateProfileCapital(p);
+    });
+    
+    const message = `Perfil Activo: ${profile.icon} ${profile.name}
+
+¿Qué deseas exportar?`;
+    
+    const modalOverlay = document.getElementById('messageModalOverlay');
+    const modalContent = modalOverlay.querySelector('.modal-content');
+    
+    modalContent.innerHTML = `
+        <h2 class="text-2xl font-bold mb-4">📥 Exportar Datos</h2>
+        <p class="text-gray-700 mb-4">${message}</p>
+        
+        <div class="space-y-3 mb-6">
+            <label class="flex items-start p-4 border-2 border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 transition">
+                <input type="radio" name="exportOption" value="single" checked class="mt-1 mr-3">
+                <div class="flex-1">
+                    <div class="font-bold">Solo este perfil (${profile.name})</div>
+                    <div class="text-sm text-gray-600">📄 ${sanitizeFileName(profile.name)}_${getCurrentDateLocal()}.json</div>
+                    <div class="text-sm text-gray-600">${transCount} transacciones • Q${capital.toFixed(2)}</div>
+                </div>
+            </label>
+            
+            <label class="flex items-start p-4 border-2 border-gray-300 rounded-lg cursor-pointer hover:border-blue-500 transition">
+                <input type="radio" name="exportOption" value="all" class="mt-1 mr-3">
+                <div class="flex-1">
+                    <div class="font-bold">Todos los perfiles (${profileCount} perfiles)</div>
+                    <div class="text-sm text-gray-600">📄 todos-perfiles_${getCurrentDateLocal()}.json</div>
+                    <div class="text-sm text-gray-600">${totalTrans} transacciones • Q${totalCapital.toFixed(2)}</div>
+                </div>
+            </label>
+        </div>
+        
+        <div class="flex gap-4">
+            <button onclick="closeMessageModal()" class="flex-1 bg-gray-400 text-white py-3 rounded-lg hover:bg-gray-500">
+                Cancelar
+            </button>
+            <button onclick="executeExport()" class="flex-1 bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700">
+                Exportar
+            </button>
+        </div>
+    `;
+    
+    modalOverlay.classList.add('active');
+}
+
+function executeExport() {
+    const selected = document.querySelector('input[name="exportOption"]:checked');
+    if (!selected) return;
+    
+    closeMessageModal();
+    
+    if (selected.value === 'single') {
+        exportSingleProfile();
+    } else {
+        exportAllProfiles();
+    }
+}
+
+function saveToCloudNow() {
+    if (!dropboxClient) {
+        showToast('❌', 'Error', 'No estás conectado a Dropbox');
+        return;
+    }
+    
+    // Actualizar perfil activo antes de guardar
+    profileManager.updateActiveProfile();
+    
+    // Guardar TODOS los perfiles (Opción A)
+    const data = {
+        profiles: profileManager.profiles,
+        activeProfile: profileManager.activeProfileId,
+        backupDate: new Date().toISOString(),
+        version: '3.0'
+    };
+    
+    const fileName = `finanzas-completo_${getCurrentDateLocal()}_${Date.now()}.json`;
+    const fileContent = JSON.stringify(data, null, 2);
+    
+    showToast('⏳', 'Guardando...', 'Subiendo backup a Dropbox');
+    
+    dropboxClient.filesUpload({
+        path: `/GestorFinanzas/${fileName}`,
+        contents: fileContent,
+        mode: 'add',
+        autorename: true
+    }).then(response => {
+        cloudConfig.lastBackup = 'Hace unos segundos';
+        saveCloudConfigToStorage();
+        updateCloudUI();
+        showToast('✅', 'Backup guardado', fileName);
+    }).catch(error => {
+        console.error('Error al guardar en Dropbox:', error);
+        showToast('❌', 'Error', 'No se pudo guardar en Dropbox');
+    });
+}
+
+function generateShareURL() {
+    const profile = profileManager.getActiveProfile();
+    
+    const data = {
+        profileName: profile.name,
+        icon: profile.icon,
+        transactions: profile.transactions || [],
+        smallCashLimit: profile.smallCashLimit || 0,
+        initialCashCapital: profile.initialCashCapital || 0,
+        sharedDate: new Date().toISOString(),
+        version: '3.0'
+    };
+    
+    try {
+        const jsonStr = JSON.stringify(data);
+        const compressed = LZString.compressToEncodedURIComponent(jsonStr);
+        const baseUrl = window.location.origin + window.location.pathname;
+        currentShareURL = `${baseUrl}?shared=${compressed}`;
+        
+        document.getElementById('shareUrlText').textContent = currentShareURL;
+        document.getElementById('shareUrlContainer').style.display = 'block';
+        
+        showToast('✅', 'Enlace generado', 'Copia y comparte el enlace');
+    } catch (e) {
+        console.error('Error al generar URL:', e);
+        showToast('❌', 'Error', 'Datos muy grandes para compartir por URL');
+    }
+}
+
+// ============================================
+// RESTO DEL CÓDIGO EXISTENTE (sin cambios)
+// ============================================
+
+function getCurrentDateLocal() {
+    const now = new Date();
+    const offset = now.getTimezoneOffset() * 60000;
+    return new Date(now - offset).toISOString().split('T')[0];
+}
+
+function sanitizeFileName(name) {
+    return name
+        .toLowerCase()
+        .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+        .replace(/[^a-z0-9]/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-|-$/g, '');
+}
+
+function downloadJSON(data, filename) {
+    const dataStr = JSON.stringify(data, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = filename;
+    link.click();
+    URL.revokeObjectURL(url);
+}
+
+function showToast(icon, title, message) {
+    document.getElementById('toastIcon').textContent = icon;
+    document.getElementById('toastTitle').textContent = title;
+    document.getElementById('toastMessage').textContent = message;
+    document.getElementById('toast').classList.add('active');
+    
+    setTimeout(() => {
+        document.getElementById('toast').classList.remove('active');
+    }, 3000);
+}
+
+function showCustomModal(title, message, onAccept) {
+    document.getElementById('modalTitle').textContent = title;
+    document.getElementById('modalMessage').textContent = message;
+    document.getElementById('messageModalOverlay').classList.add('active');
+    
+    const acceptBtn = document.getElementById('modalAcceptButton');
+    const cancelBtn = document.getElementById('modalCancelButton');
+    
+    if (onAccept) {
+        acceptBtn.style.display = 'block';
+        cancelBtn.style.display = 'block';
+        acceptBtn.onclick = () => {
+            closeMessageModal();
+            onAccept();
+        };
+        cancelBtn.onclick = closeMessageModal;
+    } else {
+        acceptBtn.style.display = 'block';
+        cancelBtn.style.display = 'none';
+        acceptBtn.textContent = 'Entendido';
+        acceptBtn.onclick = closeMessageModal;
+    }
+}
+
+function copyShareURL() {
+    if (!currentShareURL) {
+        showToast('⚠️', 'Error', 'Primero genera el enlace');
+        return;
+    }
+    
+    navigator.clipboard.writeText(currentShareURL).then(() => {
+        showToast('✅', 'Copiado', 'Enlace copiado al portapapeles');
+    }).catch(() => {
+        showCustomModal('Enlace para Compartir', currentShareURL, null);
+    });
+}
+
+function hideShareURL() {
+    document.getElementById('shareUrlContainer').style.display = 'none';
+    currentShareURL = '';
+}
+
+function checkSharedData() {
+    const params = new URLSearchParams(window.location.search);
+    const sharedData = params.get('shared');
+    
+    if (sharedData) {
+        try {
+            const decompressed = LZString.decompressFromEncodedURIComponent(sharedData);
+            const data = JSON.parse(decompressed);
+            
+            const sharedDate = new Date(data.sharedDate).toLocaleString('es-GT');
+            const transCount = data.transactions ? data.transactions.length : 0;
+            
+            showCustomModal(
+                '🔗 Datos Compartidos Detectados',
+                `Se detectaron datos compartidos del perfil: ${data.profileName || 'Sin nombre'}
+
+Fecha: ${sharedDate}
+Transacciones: ${transCount}
+
+¿Deseas crear un nuevo perfil con estos datos?`,
+                () => {
+                    importSharedDataAsProfile(data);
+                }
+            );
+        } catch (e) {
+            console.error('Error al cargar datos compartidos:', e);
+            showToast('❌', 'Error', 'No se pudieron cargar los datos compartidos');
+        }
+    }
+}
+
+function importSharedDataAsProfile(data) {
+    const profileName = data.profileName || 'Perfil Importado';
+    const icon = data.icon || '📊';
+    const profileId = profileManager.createProfile(profileName, icon, '#3b82f6', 0);
+    
+    // Actualizar el perfil con los datos importados
+    const profile = profileManager.getProfileById(profileId);
+    if (profile) {
+        profile.transactions = data.transactions || [];
+        profile.smallCashLimit = data.smallCashLimit || 0;
+        profile.initialCashCapital = data.initialCashCapital || 0;
+        profileManager.save();
+        
+        // Cambiar al nuevo perfil
+        profileManager.switchProfile(profileId);
+        
+        showToast('✅', 'Importado', `Perfil "${profileName}" creado con datos compartidos`);
+        window.history.replaceState({}, document.title, window.location.pathname);
+    }
+}
+
+function showClearConfirmation() {
+    const profile = profileManager.getActiveProfile();
+    showCustomModal(
+        'Confirmar Reinicio',
+        `¿Estás seguro de que deseas borrar TODOS los datos del perfil "${profile.name}"? Esta acción no se puede deshacer.`,
+        clearAllData
+    );
+}
+
+function clearAllData() {
+    const profile = profileManager.getActiveProfile();
+    if (profile) {
+        profile.transactions = [];
+        profile.smallCashLimit = 0;
+        profile.initialCashCapital = 0;
+        profileManager.save();
+        
+        transactions = [];
+        smallCashLimit = 0;
+        initialCashCapital = 0;
+        saveDataAndRefresh();
+    }
+}
+
+function openGlobalHelpModal() {
+    document.getElementById('globalHelpModalOverlay').classList.add('active');
+}
+
+function closeGlobalHelpModal() {
+    document.getElementById('globalHelpModalOverlay').classList.remove('active');
+}
+
+// Funciones de Cloud Config (sin cambios significativos)
+function loadCloudConfig() {
+    const saved = localStorage.getItem(LOCAL_STORAGE_CLOUD_KEY);
+    if (saved) {
+        try {
+            cloudConfig = JSON.parse(saved);
+            if (cloudConfig && cloudConfig.accessToken) {
+                dropboxClient = new Dropbox.Dropbox({ 
+                    accessToken: cloudConfig.accessToken 
+                });
+                updateCloudUI();
+            }
+        } catch (e) {
+            console.error('Error al cargar config de nube:', e);
+        }
+    }
+}
+
+function saveCloudConfigToStorage() {
+    localStorage.setItem(LOCAL_STORAGE_CLOUD_KEY, JSON.stringify(cloudConfig));
+}
+
+function updateCloudUI() {
+    const cloudSection = document.getElementById('cloudSection');
+    const disconnected = document.getElementById('cloudDisconnected');
+    const connected = document.getElementById('cloudConnected');
+    
+    if (cloudConfig && cloudConfig.accessToken) {
+        cloudSection.classList.add('cloud-connected');
+        disconnected.style.display = 'none';
+        connected.style.display = 'block';
+        
+        document.getElementById('cloudProvider').textContent = 'Dropbox';
+        document.getElementById('cloudEmail').textContent = cloudConfig.email || 'usuario@email.com';
+        document.getElementById('lastBackupTime').textContent = cloudConfig.lastBackup || 'Nunca';
+        document.getElementById('backupFrequency').textContent = 
+            cloudConfig.frequency === 'manual' ? 'Manual' :
+            cloudConfig.frequency === 'daily' ? 'Diario' :
+            cloudConfig.frequency === 'weekly' ? 'Semanal' :
+            cloudConfig.frequency === 'monthly' ? 'Mensual' : 'Manual';
+    } else {
+        cloudSection.classList.remove('cloud-connected');
+        disconnected.style.display = 'block';
+        connected.style.display = 'none';
+    }
+}
+
+function openCloudConfigModal() {
+    if (cloudConfig && cloudConfig.accessToken) {
+        showCloudStep('manage');
+        document.getElementById('manageEmail').textContent = cloudConfig.email || 'usuario@email.com';
+        document.getElementById('manageFrequencySelect').value = cloudConfig.frequency || 'manual';
+        loadBackupHistory();
+    } else {
+        showCloudStep(1);
+    }
+    document.getElementById('cloudConfigModal').classList.add('active');
+}
+
+function closeCloudConfigModal() {
+    document.getElementById('cloudConfigModal').classList.remove('active');
+}
+
+function showCloudStep(step) {
+    document.querySelectorAll('.cloud-step').forEach(s => s.style.display = 'none');
+    
+    if (step === 'manage') {
+        document.getElementById('cloudStepManage').style.display = 'block';
+    } else {
+        document.getElementById('cloudStep' + step).style.display = 'block';
+    }
+}
+
+function selectProvider(provider) {
+    if (provider === 'dropbox') {
+        showCloudStep(2);
+    }
+}
+
+function connectDropbox() {
+    if (DROPBOX_APP_KEY === 'TU_APP_KEY_AQUI') {
+        showToast('⚠️', 'Configuración necesaria', 'Debes configurar tu DROPBOX_APP_KEY en el código');
+        return;
+    }
+    
+    const authUrl = `https://www.dropbox.com/oauth2/authorize?client_id=${DROPBOX_APP_KEY}&response_type=token&redirect_uri=${encodeURIComponent(REDIRECT_URI)}`;
+    
+    const width = 600;
+    const height = 700;
+    const left = (screen.width / 2) - (width / 2);
+    const top = (screen.height / 2) - (height / 2);
+    
+    window.open(
+        authUrl,
+        'Dropbox Auth',
+        `width=${width},height=${height},left=${left},top=${top}`
+    );
+}
+
+window.addEventListener('load', function() {
+    const hash = window.location.hash;
+    if (hash && hash.includes('access_token')) {
+        const params = new URLSearchParams(hash.substring(1));
+        const accessToken = params.get('access_token');
+        
+        if (accessToken) {
+            dropboxClient = new Dropbox.Dropbox({ accessToken: accessToken });
+            
+            dropboxClient.usersGetCurrentAccount()
+                .then(response => {
+                    cloudConfig = {
+                        provider: 'dropbox',
+                        accessToken: accessToken,
+                        email: response.email,
+                        frequency: 'manual',
+                        lastBackup: null
+                    };
+                    
+                    showCloudStep(3);
+                    document.getElementById('connectedEmail').textContent = response.email;
+                    document.getElementById('cloudConfigModal').classList.add('active');
+                    
+                    window.history.replaceState(null, null, window.location.pathname);
+                })
+                .catch(error => {
+                    console.error('Error al obtener info de Dropbox:', error);
+                    showToast('❌', 'Error', 'No se pudo conectar con Dropbox');
+                });
+        }
+    }
+});
+
+function saveCloudConfig() {
+    if (!cloudConfig) return;
+    
+    cloudConfig.frequency = document.getElementById('backupFrequencySelect').value;
+    saveCloudConfigToStorage();
+    updateCloudUI();
+    closeCloudConfigModal();
+    showToast('✅', 'Configuración guardada', 'Backup en la nube configurado correctamente');
+}
+
+function updateCloudConfig() {
+    if (!cloudConfig) return;
+    
+    cloudConfig.frequency = document.getElementById('manageFrequencySelect').value;
+    saveCloudConfigToStorage();
+    updateCloudUI();
+    closeCloudConfigModal();
+    showToast('✅', 'Configuración actualizada', 'Cambios guardados correctamente');
+}
+
+function disconnectCloud() {
+    showCustomModal(
+        'Desconectar Backup en la Nube',
+        '¿Estás seguro? Perderás acceso a los backups automáticos.',
+        () => {
+            cloudConfig = null;
+            dropboxClient = null;
+            localStorage.removeItem(LOCAL_STORAGE_CLOUD_KEY);
+            updateCloudUI();
+            closeCloudConfigModal();
+            showToast('ℹ️', 'Desconectado', 'Backup en la nube desconectado');
+        }
+    );
+}
+
+function loadBackupHistory() {
+    if (!dropboxClient) return;
+    
+    const listElement = document.getElementById('backupHistoryList');
+    listElement.innerHTML = '<p class="text-gray-500 text-sm">Cargando...</p>';
+    
+    dropboxClient.filesListFolder({
+        path: '/GestorFinanzas'
+    }).then(response => {
+        if (response.entries.length === 0) {
+            listElement.innerHTML = '<p class="text-gray-500 text-sm">No hay backups disponibles</p>';
+            return;
+        }
+        
+        const backups = response.entries
+            .filter(entry => entry['.tag'] === 'file' && entry.name.endsWith('.json'))
+            .sort((a, b) => new Date(b.client_modified) - new Date(a.client_modified))
+            .slice(0, 5);
+        
+        listElement.innerHTML = backups.map(backup => {
+            const date = new Date(backup.client_modified);
+            const dateStr = date.toLocaleString('es-GT');
+            const sizeKB = (backup.size / 1024).toFixed(0);
+            
+            return `
+                <div class="backup-item">
+                    <div>
+                        <p class="font-semibold">📄 ${backup.name}</p>
+                        <p class="text-sm text-gray-600">${dateStr} • ${sizeKB} KB</p>
+                    </div>
+                    <div class="flex gap-2">
+                        <button onclick="restoreFromCloud('${backup.path_display}')" class="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600">
+                            Restaurar
+                        </button>
+                    </div>
+                </div>
+            `;
+        }).join('');
+    }).catch(error => {
+        console.error('Error al listar backups:', error);
+        listElement.innerHTML = '<p class="text-red-500 text-sm">Error al cargar backups</p>';
+    });
+}
+
+function restoreFromCloud(filePath) {
+    if (!dropboxClient) return;
+    
+    showCustomModal(
+        'Restaurar Backup',
+        '¿Reemplazar TODOS los perfiles actuales con este backup? Esta acción no se puede deshacer.',
+        () => {
+            dropboxClient.filesDownload({ path: filePath })
+                .then(response => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        try {
+                            const data = JSON.parse(e.target.result);
+                            
+                            // Verificar si es backup completo o individual
+                            if (data.profiles) {
+                                // Backup completo con múltiples perfiles
+                                profileManager.profiles = data.profiles || [];
+                                profileManager.activeProfileId = data.activeProfile;
+                                profileManager.save();
+                                
+                                // Cargar perfil activo
+                                const activeProfile = profileManager.getActiveProfile();
+                                if (activeProfile) {
+                                    transactions = activeProfile.transactions || [];
+                                    smallCashLimit = activeProfile.smallCashLimit || 0;
+                                    initialCashCapital = activeProfile.initialCashCapital || 0;
+                                }
+                            } else {
+                                // Backup de un solo perfil (formato antiguo)
+                                transactions = data.transactions || [];
+                                smallCashLimit = data.smallCashLimit || 0;
+                                initialCashCapital = data.initialCashCapital || 0;
+                                profileManager.updateActiveProfile();
+                            }
+                            
+                            updateProfileUI();
+                            saveDataAndRefresh();
+                            closeCloudConfigModal();
+                            showToast('✅', 'Restaurado', 'Datos restaurados correctamente');
+                        } catch (err) {
+                            console.error('Error al parsear backup:', err);
+                            showToast('❌', 'Error', 'Archivo corrupto');
+                        }
+                    };
+                    reader.readAsText(response.result.fileBlob);
+                })
+                .catch(error => {
+                    console.error('Error al descargar:', error);
+                    showToast('❌', 'Error', 'No se pudo descargar el backup');
+                });
+        }
+    );
+}
+
+function initializeApp() {
+// Registrar Service Worker para PWA
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('./sw.js')
+        .then(registration => {
+            console.log('Service Worker registrado:', registration);
+        })
+        .catch(error => {
+            console.log('Error al registrar Service Worker:', error);
+        });
+}
+    // Cargar perfil activo
+    const activeProfile = profileManager.getActiveProfile();
+    if (activeProfile) {
+        transactions = activeProfile.transactions || [];
+        smallCashLimit = activeProfile.smallCashLimit || 0;
+        initialCashCapital = activeProfile.initialCashCapital || 0;
+    }
+    
+    document.getElementById('transactionDateOnly').value = getCurrentDateLocal();
+    updateProfileUI();
+    calculateAndDisplayCapital();
+    renderTransactionList();
+    calculateCashValue();
+    updateStorageIndicator();
+    generateSummary();
+    loadCloudConfig();
+    checkSharedData();
+}
+
+function saveDataAndRefresh() {
+    // Guardar en el perfil activo
+    profileManager.updateActiveProfile();
+    
+    calculateAndDisplayCapital();
+    renderTransactionList();
+    calculateCashValue();
+    updateStorageIndicator();
+    generateSummary();
+}
+
+function calculateCapitalValue() {
+    let totalIncome = 0;
+    let totalExpense = 0;
+
+    transactions.forEach(t => {
+        if (t.type === 'income') {
+            totalIncome += parseFloat(t.amount) || 0;
+        } else if (t.type === 'expense') {
+            if (t.fundSource === 'total') {
+                totalExpense += parseFloat(t.amount) || 0;
+            }
+        } else if (t.type === 'promise' && t.promiseStatus === 'completed') {
+            totalIncome += parseFloat(t.amount) || 0;
+        } else if (t.type === 'transfer-in') {
+            totalIncome += parseFloat(t.amount) || 0;
+        } else if (t.type === 'transfer-out') {
+            totalExpense += parseFloat(t.amount) || 0;
+        }
+    });
+
+    return totalIncome - totalExpense;
+}
+
+function calculateAndDisplayCapital() {
+    const capital = calculateCapitalValue();
+    document.getElementById('capitalTotalDisplay').textContent = `Q${capital.toFixed(2)}`;
+    
+    const lastIncome = transactions.filter(t => t.type === 'income').sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+    if (lastIncome) {
+        document.getElementById('lastIncomeDisplay').textContent = `Q${parseFloat(lastIncome.amount).toFixed(2)}`;
+        document.getElementById('lastIncomeDate').textContent = `Fecha: ${lastIncome.date}`;
+    }
+    
+    const lastExpense = transactions.filter(t => t.type === 'expense').sort((a, b) => new Date(b.date) - new Date(a.date))[0];
+    if (lastExpense) {
+        document.getElementById('lastExpenseDisplay').textContent = `Q${parseFloat(lastExpense.amount).toFixed(2)}`;
+        document.getElementById('lastExpenseDate').textContent = `Fecha: ${lastExpense.date}`;
+    }
+}
+
+function calculateCashValue() {
+    let netMovement = 0;
+    
+    transactions.forEach(t => {
+        if (t.type === 'transfer-out') {
+            netMovement -= parseFloat(t.amount) || 0;
+        } else if (t.type === 'transfer-in') {
+            netMovement += parseFloat(t.amount) || 0;
+        } else if (t.type === 'expense' && t.fundSource === 'cash') {
+            netMovement -= parseFloat(t.amount) || 0;
+        }
+    });
+    
+    const remainingCash = initialCashCapital + netMovement;
+    
+    document.getElementById('initialCapitalDisplay').textContent = `Q${initialCashCapital.toFixed(2)}`;
+    document.getElementById('limitDisplay').textContent = `Q${smallCashLimit.toFixed(2)}`;
+    document.getElementById('netMovementDisplay').textContent = `Q${netMovement.toFixed(2)}`;
+    document.getElementById('remainingCashDisplay').textContent = `Q${remainingCash.toFixed(2)}`;
+    document.getElementById('smallCashValue').textContent = `Saldo Actual: Q${remainingCash.toFixed(2)} / Límite: Q${smallCashLimit.toFixed(2)}`;
+}
+
+function renderTransactionList() {
+    const container = document.getElementById('transactionList');
+    const filtered = transactions.filter(t => t.type !== 'transfer-in' && t.type !== 'transfer-out');
+    
+    if (filtered.length === 0) {
+        container.innerHTML = '<p class="text-center text-gray-500 py-8">No hay transacciones registradas.</p>';
+        return;
+    }
+    
+    const sorted = filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    container.innerHTML = sorted.map(t => {
+        const typeLabel = t.type === 'income' ? 'Ingreso' : t.type === 'expense' ? 'Egreso' : 'Promesa';
+        const typeColor = t.type === 'income' ? 'bg-green-100 text-green-800' : t.type === 'expense' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800';
+        const hasImage = t.invoiceImage ? '📎' : '';
+        const promiseStatus = t.type === 'promise' ? (t.promiseStatus === 'completed' ? '✓ Cumplida' : '⏳ Pendiente') : '';
+        const fundSourceLabel = t.type === 'expense' && t.fundSource ? (t.fundSource === 'cash' ? '💵 Caja Chica' : '💰 Capital Total') : '';
+        
+        return `
+            <div class="card p-4 mb-4 border-l-4 ${t.type === 'income' ? 'border-green-500' : t.type === 'expense' ? 'border-red-500' : 'border-yellow-500'}">
+                <div class="flex justify-between items-start">
+                    <div class="flex-1">
+                        <span class="inline-block px-3 py-1 text-sm font-semibold rounded-full ${typeColor}">${typeLabel}</span>
+                        ${promiseStatus ? `<span class="ml-2 text-sm">${promiseStatus}</span>` : ''}
+                        ${fundSourceLabel ? `<span class="ml-2 text-xs text-gray-600">${fundSourceLabel}</span>` : ''}
+                        <p class="mt-2 font-bold text-lg">${t.name || t.concept || 'Sin descripción'}</p>
+                        <p class="text-sm text-gray-600">Fecha: ${t.date} ${t.time ? `a las ${t.time}` : ''}</p>
+                        ${t.invoiceNumber ? `<p class="text-sm text-gray-600">Factura: ${t.invoiceNumber}</p>` : ''}
+                        ${t.promiseDate ? `<p class="text-sm text-gray-600">Promesa para: ${t.promiseDate}</p>` : ''}
+                    </div>
+                    <div class="text-right">
+                        <p class="text-2xl font-bold ${t.type === 'income' ? 'text-green-600' : 'text-red-600'}">Q${parseFloat(t.amount).toFixed(2)}</p>
+                        ${hasImage ? `<button onclick="viewExistingInvoice('${t.id}')" class="text-blue-600 hover:underline text-sm mt-2">Ver Imagen</button>` : ''}
+                        <div class="mt-2">
+                            <button onclick="openEditModal('${t.id}')" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 text-sm">Editar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function selectType(type) {
+    document.getElementById('transactionType').value = type;
+    
+    document.querySelectorAll('.type-button').forEach(btn => btn.classList.remove('active'));
+    document.getElementById('type' + type.charAt(0).toUpperCase() + type.slice(1)).classList.add('active');
+    
+    document.getElementById('conceptField').style.display = 'none';
+    document.getElementById('expenseFields').style.display = 'none';
+    document.getElementById('promiseFields').style.display = 'none';
+    
+    if (type === 'income') {
+        document.getElementById('conceptField').style.display = 'block';
+    } else if (type === 'expense') {
+        document.getElementById('conceptField').style.display = 'block';
+        document.getElementById('expenseFields').style.display = 'block';
+    } else if (type === 'promise') {
+        document.getElementById('conceptField').style.display = 'block';
+        document.getElementById('promiseFields').style.display = 'block';
+    }
+}
+
+function openEditModal(id) {
+    const transaction = transactions.find(t => t.id === id);
+    if (!transaction) return;
+    
+    currentEditingTransaction = transaction;
+    
+    document.getElementById('editTransactionId').value = transaction.id;
+    document.getElementById('editName').value = transaction.name || '';
+    document.getElementById('editAmount').value = transaction.amount;
+    document.getElementById('editConcept').value = transaction.concept || '';
+    
+    const typeLabels = { income: 'Ingreso', expense: 'Egreso', promise: 'Promesa' };
+    document.getElementById('editTypeInfo').textContent = typeLabels[transaction.type] || transaction.type;
+    
+    document.getElementById('editConceptField').style.display = 'none';
+    document.getElementById('editExpenseFields').style.display = 'none';
+    document.getElementById('editPromiseFields').style.display = 'none';
+    document.getElementById('promiseStatusActions').style.display = 'none';
+    
+    if (transaction.type === 'income') {
+        document.getElementById('editConceptField').style.display = 'block';
+    } else if (transaction.type === 'promise') {
+        document.getElementById('editConceptField').style.display = 'block';
+        document.getElementById('editPromiseFields').style.display = 'block';
+        document.getElementById('editPromiseDate').value = transaction.promiseDate || '';
+        document.getElementById('promiseStatusActions').style.display = 'block';
+        
+        document.getElementById('markPromiseCompleted').onclick = () => updatePromiseStatus(transaction.id, 'completed');
+        document.getElementById('markPromisePending').onclick = () => updatePromiseStatus(transaction.id, 'pending');
+    } else if (transaction.type === 'expense') {
+        document.getElementById('editConceptField').style.display = 'block';
+        document.getElementById('editExpenseFields').style.display = 'block';
+        document.getElementById('editInvoiceNumber').value = transaction.invoiceNumber || '';
+        
+        if (transaction.fundSource) {
+            document.querySelector(`input[name="editFundSource"][value="${transaction.fundSource}"]`).checked = true;
+        }
+        
+        const imageContainer = document.getElementById('editInvoiceImageContainer');
+        if (transaction.invoiceImage) {
+            imageContainer.innerHTML = `
+                <div class="image-preview-container">
+                    <img src="${transaction.invoiceImage}" alt="Factura" onclick="openFullscreenImage('${transaction.invoiceImage}')">
+                    <div class="image-actions">
+                        <button type="button" onclick="removeCurrentInvoice()" title="Eliminar imagen">🗑️</button>
+                        <button type="button" onclick="document.getElementById('editInvoiceImageInput').click()" title="Cambiar imagen">🔄</button>
+                    </div>
+                </div>
+            `;
+        } else {
+            imageContainer.innerHTML = `
+                <div class="upload-area" onclick="document.getElementById('editInvoiceImageInput').click()">
+                    <span class="upload-icon">📸</span>
+                    <span class="upload-text">Click para subir imagen</span>
+                </div>
+            `;
+        }
+    }
+    
+    document.getElementById('editModalOverlay').classList.add('active');
+}
+
+function updatePromiseStatus(id, status) {
+    const transaction = transactions.find(t => t.id === id);
+    if (transaction) {
+        transaction.promiseStatus = status;
+        saveDataAndRefresh();
+        closeEditModal();
+    }
+}
+
+function viewExistingInvoice(id) {
+    const transaction = transactions.find(t => t.id === id);
+    if (transaction && transaction.invoiceImage) {
+        openFullscreenImage(transaction.invoiceImage);
+    }
+}
+
+function removeCurrentInvoice() {
+    if (currentEditingTransaction) {
+        delete currentEditingTransaction.invoiceImage;
+        const imageContainer = document.getElementById('editInvoiceImageContainer');
+        imageContainer.innerHTML = `
+            <div class="upload-area" onclick="document.getElementById('editInvoiceImageInput').click()">
+                <span class="upload-icon">📸</span>
+                <span class="upload-text">Click para subir imagen</span>
+            </div>
+        `;
+    }
+}
+
+function promptDeleteFromEdit() {
+    if (!currentEditingTransaction) return;
+    
+    showCustomModal(
+        'Confirmar Eliminación',
+        '¿Estás seguro de que deseas eliminar esta transacción?',
+        () => {
+            deleteTransaction(currentEditingTransaction.id);
+            closeEditModal();
+        }
+    );
+}
+
+function deleteTransaction(id) {
+    transactions = transactions.filter(t => t.id !== id);
+    saveDataAndRefresh();
+}
+
+function openFullscreenImage(src) {
+    document.getElementById('fullscreenImage').src = src;
+    document.getElementById('fullscreenImageOverlay').classList.add('active');
+}
+
+function closeFullscreenImage() {
+    document.getElementById('fullscreenImageOverlay').classList.remove('active');
+}
+
+function closeEditModal() {
+    document.getElementById('editModalOverlay').classList.remove('active');
+    currentEditingTransaction = null;
+}
+
+function switchTab(tabName) {
+    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+    document.querySelectorAll('.tab-button').forEach(button => button.classList.remove('active'));
+    
+    document.getElementById(tabName).classList.add('active');
+    
+    // Resaltar el botón correcto de la pestaña
+    const tabButtons = document.querySelectorAll('.tab-button');
+    const tabIndex = ['registro', 'smallCash', 'search', 'summary'].indexOf(tabName);
+    if (tabIndex !== -1 && tabButtons[tabIndex]) {
+        tabButtons[tabIndex].classList.add('active');
+    }
+    
+    if (tabName === 'summary') {
+        generateSummary();
+    }
+}
+
+function filterTransactions() {
+    const filterType = document.getElementById('filterTransactionType').value;
+    const invoiceSearch = document.getElementById('searchInvoice').value.trim().toLowerCase();
+    let filtered = transactions.filter(t => t.type !== 'transfer-in' && t.type !== 'transfer-out');
+    
+    if (filterType === 'pending_promise') {
+        filtered = filtered.filter(t => t.type === 'promise' && t.promiseStatus === 'pending');
+    } else if (filterType === 'completed_promise') {
+        filtered = filtered.filter(t => t.type === 'promise' && t.promiseStatus === 'completed');
+    } else if (filterType !== 'all') {
+        filtered = filtered.filter(t => t.type === filterType);
+    }
+    
+    if (invoiceSearch) {
+        filtered = filtered.filter(t => t.invoiceNumber && t.invoiceNumber.toLowerCase().includes(invoiceSearch));
+    }
+    
+    const container = document.getElementById('transactionList');
+    if (filtered.length === 0) {
+        container.innerHTML = '<p class="text-center text-gray-500 py-8">No se encontraron transacciones.</p>';
+        return;
+    }
+    
+    const sorted = filtered.sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    container.innerHTML = sorted.map(t => {
+        const typeLabel = t.type === 'income' ? 'Ingreso' : t.type === 'expense' ? 'Egreso' : 'Promesa';
+        const typeColor = t.type === 'income' ? 'bg-green-100 text-green-800' : t.type === 'expense' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800';
+        const hasImage = t.invoiceImage ? '📎' : '';
+        const promiseStatus = t.type === 'promise' ? (t.promiseStatus === 'completed' ? '✓ Cumplida' : '⏳ Pendiente') : '';
+        const fundSourceLabel = t.type === 'expense' && t.fundSource ? (t.fundSource === 'cash' ? '💵 Caja Chica' : '💰 Capital Total') : '';
+        
+        return `
+            <div class="card p-4 mb-4 border-l-4 ${t.type === 'income' ? 'border-green-500' : t.type === 'expense' ? 'border-red-500' : 'border-yellow-500'}">
+                <div class="flex justify-between items-start">
+                    <div class="flex-1">
+                        <span class="inline-block px-3 py-1 text-sm font-semibold rounded-full ${typeColor}">${typeLabel}</span>
+                        ${promiseStatus ? `<span class="ml-2 text-sm">${promiseStatus}</span>` : ''}
+                        ${fundSourceLabel ? `<span class="ml-2 text-xs text-gray-600">${fundSourceLabel}</span>` : ''}
+                        <p class="mt-2 font-bold text-lg">${t.name || t.concept || 'Sin descripción'}</p>
+                        <p class="text-sm text-gray-600">Fecha: ${t.date} ${t.time ? `a las ${t.time}` : ''}</p>
+                        ${t.invoiceNumber ? `<p class="text-sm text-gray-600">Factura: ${t.invoiceNumber}</p>` : ''}
+                        ${t.promiseDate ? `<p class="text-sm text-gray-600">Promesa para: ${t.promiseDate}</p>` : ''}
+                    </div>
+                    <div class="text-right">
+                        <p class="text-2xl font-bold ${t.type === 'income' ? 'text-green-600' : 'text-red-600'}">Q${parseFloat(t.amount).toFixed(2)}</p>
+                        ${hasImage ? `<button onclick="viewExistingInvoice('${t.id}')" class="text-blue-600 hover:underline text-sm mt-2">Ver Imagen</button>` : ''}
+                        <div class="mt-2">
+                            <button onclick="openEditModal('${t.id}')" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 text-sm">Editar</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        `;
+    }).join('');
+}
+
+function generateSummary() {
+    const period = document.getElementById('summaryPeriod').value;
+    const type = document.getElementById('summaryType').value;
+    
+    const now = new Date();
+    let startDate = new Date(0);
+    
+    switch(period) {
+        case 'week':
+            startDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+            break;
+        case 'month':
+            startDate = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+            break;
+        case 'quarter':
+            startDate = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
+            break;
+        case 'semester':
+            startDate = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000);
+            break;
+        case 'year':
+            startDate = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000);
+            break;
+    }
+    
+    let filtered = transactions.filter(t => {
+        const transDate = new Date(t.date);
+        return transDate >= startDate && t.type !== 'transfer-in' && t.type !== 'transfer-out';
+    });
+    
+    if (type !== 'all') {
+        filtered = filtered.filter(t => t.type === type);
+    }
+    
+    let totalIncome = 0;
+    let totalExpense = 0;
+    let totalExpenseFromTotal = 0;
+    let totalExpenseFromCash = 0;
+    let promisesPending = 0;
+    let promisesPendingAmount = 0;
+    let imagesCount = 0;
+    const conceptsMap = {};
+    
+    filtered.forEach(t => {
+        if (t.type === 'income' || (t.type === 'promise' && t.promiseStatus === 'completed')) {
+            totalIncome += parseFloat(t.amount) || 0;
+        } else if (t.type === 'expense') {
+            totalExpense += parseFloat(t.amount) || 0;
+            if (t.fundSource === 'total') {
+                totalExpenseFromTotal += parseFloat(t.amount) || 0;
+            } else if (t.fundSource === 'cash') {
+                totalExpenseFromCash += parseFloat(t.amount) || 0;
+            }
+            
+            const concept = t.concept || t.invoiceNumber || 'Sin concepto';
+            conceptsMap[concept] = (conceptsMap[concept] || 0) + parseFloat(t.amount);
+        } else if (t.type === 'promise' && t.promiseStatus === 'pending') {
+            promisesPending++;
+            promisesPendingAmount += parseFloat(t.amount) || 0;
+        }
+        
+        if (t.invoiceImage) {
+            imagesCount++;
+        }
+    });
+    
+    const balance = totalIncome - totalExpense;
+    
+    document.getElementById('summaryIncome').textContent = `Q${totalIncome.toFixed(2)}`;
+    document.getElementById('summaryExpense').textContent = `Q${totalExpense.toFixed(2)}`;
+    document.getElementById('summaryBalance').textContent = `Q${balance.toFixed(2)}`;
+    document.getElementById('summaryTransactions').textContent = filtered.length;
+    document.getElementById('summaryPromisesPending').textContent = promisesPending;
+    document.getElementById('summaryPromisesPendingAmount').textContent = promisesPendingAmount.toFixed(2);
+    document.getElementById('summaryImagesCount').textContent = imagesCount;
+    
+    const totalExpenseCalc = totalExpenseFromTotal + totalExpenseFromCash;
+    const percentTotal = totalExpenseCalc > 0 ? ((totalExpenseFromTotal / totalExpenseCalc) * 100).toFixed(0) : 0;
+    const percentCash = totalExpenseCalc > 0 ? ((totalExpenseFromCash / totalExpenseCalc) * 100).toFixed(0) : 0;
+    
+    document.getElementById('summaryExpenseTotal').textContent = `Q${totalExpenseFromTotal.toFixed(2)}`;
+    document.getElementById('summaryExpenseTotalPercent').textContent = percentTotal;
+    document.getElementById('summaryExpenseCash').textContent = `Q${totalExpenseFromCash.toFixed(2)}`;
+    document.getElementById('summaryExpenseCashPercent').textContent = percentCash;
+    
+    const topConcepts = Object.entries(conceptsMap)
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5);
+    
+    const topConceptsHTML = topConcepts.length > 0 
+        ? topConcepts.map((c, i) => `<p class="mb-2">${i + 1}. ${c[0]}: <span class="font-bold">Q${c[1].toFixed(2)}</span></p>`).join('')
+        : '<p class="text-gray-500">No hay datos suficientes</p>';
+    
+    document.getElementById('topConceptsList').innerHTML = topConceptsHTML;
+}
+
+function exportSummaryAsImage() {
+    const node = document.getElementById('summaryContainer');
+    
+    if (typeof htmlToImage === 'undefined') {
+        showToast('❌', 'Error', 'Librería no disponible');
+        return;
+    }
+    
+    htmlToImage.toPng(node, { quality: 0.95, backgroundColor: '#ffffff' })
+        .then(dataUrl => {
+            const link = document.createElement('a');
+            const period = document.getElementById('summaryPeriod').value;
+            link.download = `resumen-finanzas-${period}-${getCurrentDateLocal()}.png`;
+            link.href = dataUrl;
+            link.click();
+            showToast('✅', 'Exportado', 'Resumen guardado');
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            showToast('❌', 'Error', 'No se pudo exportar');
+        });
+}
+
+function handleImport(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        try {
+            const data = JSON.parse(e.target.result);
+            
+            // Detectar tipo de archivo
+            if (data.exportType === 'all-profiles' && data.profiles) {
+                // Importar todos los perfiles
+                showCustomModal(
+                    'Importar Perfiles',
+                    `Se detectaron ${data.profiles.length} perfil(es). ¿Deseas reemplazar todos tus perfiles actuales?`,
+                    () => {
+                        profileManager.profiles = data.profiles;
+                        profileManager.activeProfileId = data.activeProfile || data.profiles[0].id;
+                        profileManager.save();
+                        
+                        const activeProfile = profileManager.getActiveProfile();
+                        transactions = activeProfile.transactions || [];
+                        smallCashLimit = activeProfile.smallCashLimit || 0;
+                        initialCashCapital = activeProfile.initialCashCapital || 0;
+                        
+                        updateProfileUI();
+                        saveDataAndRefresh();
+                        showToast('✅', 'Importado', `${data.profiles.length} perfil(es) importados`);
+                    }
+                );
+            } else if (data.exportType === 'single-profile' && data.profileName) {
+                // Importar como nuevo perfil
+                showCustomModal(
+                    'Importar Perfil',
+                    `¿Deseas crear un nuevo perfil llamado "${data.profileName}" con estos datos?`,
+                    () => {
+                        const profileId = profileManager.createProfile(
+                            data.profileName,
+                            data.icon || '📊',
+                            data.color || '#3b82f6',
+                            0
+                        );
+                        
+                        const profile = profileManager.getProfileById(profileId);
+                        if (profile) {
+                            profile.transactions = data.transactions || [];
+                            profile.smallCashLimit = data.smallCashLimit || 0;
+                            profile.initialCashCapital = data.initialCashCapital || 0;
+                            profileManager.save();
+                            
+                            profileManager.switchProfile(profileId);
+                            showToast('✅', 'Importado', `Perfil "${data.profileName}" creado`);
+                        }
+                    }
+                );
+            } else {
+                // Formato antiguo - importar al perfil actual
+                transactions = data.transactions || [];
+                smallCashLimit = data.smallCashLimit || 0;
+                initialCashCapital = data.initialCashCapital || 0;
+                saveDataAndRefresh();
+                showToast('✅', 'Importado', 'Datos cargados en perfil actual');
+            }
+        } catch (err) {
+            console.error('Error al importar:', err);
+            showToast('❌', 'Error', 'Archivo inválido');
+        }
+    };
+    reader.readAsText(file);
+    event.target.value = '';
+}
+
+function openTransferModal(direction) {
+    currentTransferDirection = direction;
+    const title = direction === 'toSmallCash' ? 'Transferencia: Capital Total → Caja Chica' : 'Transferencia: Caja Chica → Capital Total';
+    document.getElementById('transferDirection').textContent = title;
+    document.getElementById('transferModalOverlay').classList.add('active');
+}
+
+function closeTransferModal() {
+    document.getElementById('transferModalOverlay').classList.remove('active');
+    document.getElementById('transferForm').reset();
+    currentTransferDirection = null;
+}
+
+function updateStorageIndicator() {
+    const imageCount = transactions.filter(t => t.invoiceImage).length;
+    const percentage = (imageCount / MAX_IMAGES_ESTIMATE) * 100;
+    
+    document.getElementById('storageCount').textContent = `${imageCount} de ~${MAX_IMAGES_ESTIMATE} imágenes`;
+    document.getElementById('storageFill').style.width = `${Math.min(percentage, 100)}%`;
+    
+    const indicator = document.querySelector('.storage-indicator');
+    if (percentage > 85) {
+        indicator.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
+    } else if (percentage > 70) {
+        indicator.style.background = 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
+    } else {
+        indicator.style.background = 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+    }
+}
+
+// ============================================
+// EVENT LISTENERS
+// ============================================
+
+document.getElementById('transactionForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const type = document.getElementById('transactionType').value;
+    if (!type) {
+        showToast('❌', 'Error', 'Selecciona tipo');
+        return;
+    }
+    
+    const name = document.getElementById('name').value;
+    const amount = document.getElementById('amount').value;
+    const date = document.getElementById('transactionDateOnly').value;
+    const time = document.getElementById('transactionTime').value;
+    const concept = document.getElementById('concept').value;
+    
+    const newTransaction = {
+        id: Date.now().toString(),
+        type,
+        name,
+        amount: parseFloat(amount),
+        date,
+        time,
+        concept,
+        timestamp: new Date().toISOString()
+    };
+    
+    if (type === 'promise') {
+        newTransaction.promiseDate = document.getElementById('promiseDate').value;
+        newTransaction.promiseStatus = 'pending';
+    } else if (type === 'expense') {
+        const fundSourceElement = document.querySelector('input[name="fundSource"]:checked');
+        newTransaction.fundSource = fundSourceElement ? fundSourceElement.value : 'total';
+        newTransaction.invoiceNumber = document.getElementById('invoiceNumber').value;
+        
+        const imageFile = document.getElementById('invoiceImage').files[0];
+        if (imageFile) {
+            try {
+                document.getElementById('compressingMsg').style.display = 'block';
+                
+                const options = {
+                    maxSizeMB: 0.2,
+                    maxWidthOrHeight: 800,
+                    useWebWorker: true,
+                    initialQuality: 0.70,
+                    fileType: 'image/webp'
+                };
+                
+                const compressedFile = await imageCompression(imageFile, options);
+                const reader = new FileReader();
+                
+                reader.onload = (event) => {
+                    newTransaction.invoiceImage = event.target.result;
+                    transactions.push(newTransaction);
+                    saveDataAndRefresh();
+                    this.reset();
+                    document.getElementById('transactionDateOnly').value = getCurrentDateLocal();
+                    document.getElementById('compressingMsg').style.display = 'none';
+                    document.querySelectorAll('.type-button').forEach(btn => btn.classList.remove('active'));
+                    document.getElementById('transactionType').value = '';
+                    document.getElementById('conceptField').style.display = 'none';
+                    document.getElementById('expenseFields').style.display = 'none';
+                    document.getElementById('promiseFields').style.display = 'none';
+                    showToast('✅', 'Registrado', 'Transacción guardada');
+                };
+                
+                reader.readAsDataURL(compressedFile);
+                return;
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('compressingMsg').style.display = 'none';
+            }
+        }
+    }
+    
+    transactions.push(newTransaction);
+    saveDataAndRefresh();
+    this.reset();
+    document.getElementById('transactionDateOnly').value = getCurrentDateLocal();
+    document.querySelectorAll('.type-button').forEach(btn => btn.classList.remove('active'));
+    document.getElementById('transactionType').value = '';
+    document.getElementById('conceptField').style.display = 'none';
+    document.getElementById('expenseFields').style.display = 'none';
+    document.getElementById('promiseFields').style.display = 'none';
+    showToast('✅', 'Registrado', 'Transacción guardada');
+});
+
+document.getElementById('editTransactionForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    
+    const id = document.getElementById('editTransactionId').value;
+    const transaction = transactions.find(t => t.id === id);
+    
+    if (!transaction) return;
+    
+    transaction.name = document.getElementById('editName').value;
+    transaction.amount = parseFloat(document.getElementById('editAmount').value);
+    transaction.concept = document.getElementById('editConcept').value;
+    
+    if (transaction.type === 'promise') {
+        transaction.promiseDate = document.getElementById('editPromiseDate').value;
+    } else if (transaction.type === 'expense') {
+        const fundSourceElement = document.querySelector('input[name="editFundSource"]:checked');
+        if (fundSourceElement) {
+            transaction.fundSource = fundSourceElement.value;
+        }
+        transaction.invoiceNumber = document.getElementById('editInvoiceNumber').value;
+        
+        const imageFile = document.getElementById('editInvoiceImageInput').files[0];
+        if (imageFile) {
+            try {
+                document.getElementById('editCompressingMsg').style.display = 'block';
+                
+                const options = {
+                    maxSizeMB: 0.2,
+                    maxWidthOrHeight: 800,
+                    useWebWorker: true,
+                    initialQuality: 0.70,
+                    fileType: 'image/webp'
+                };
+                
+                const compressedFile = await imageCompression(imageFile, options);
+                const reader = new FileReader();
+                
+                reader.onload = (event) => {
+                    transaction.invoiceImage = event.target.result;
+                    saveDataAndRefresh();
+                    closeEditModal();
+                    document.getElementById('editCompressingMsg').style.display = 'none';
+                    showToast('✅', 'Actualizado', 'Transacción actualizada');
+                };
+                
+                reader.readAsDataURL(compressedFile);
+                return;
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('editCompressingMsg').style.display = 'none';
+            }
+        }
+    }
+    
+    saveDataAndRefresh();
+    closeEditModal();
+    showToast('✅', 'Actualizado', 'Transacción actualizada');
+});
+
+document.getElementById('cashLimitForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    initialCashCapital = parseFloat(document.getElementById('initialCashCapital').value) || 0;
+    smallCashLimit = parseFloat(document.getElementById('smallCashLimit').value) || 0;
+    
+    saveDataAndRefresh();
+    showToast('✅', 'Guardado', 'Configuración actualizada');
+});
+
+document.getElementById('transferForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    
+    const amount = parseFloat(document.getElementById('transferAmount').value);
+    
+    if (!amount || amount <= 0) {
+        showToast('❌', 'Error', 'Monto inválido');
+        return;
+    }
+    
+    const transferTransaction = {
+        id: Date.now().toString(),
+        type: currentTransferDirection === 'toSmallCash' ? 'transfer-out' : 'transfer-in',
+        amount: amount,
+        date: getCurrentDateLocal(),
+        timestamp: new Date().toISOString(),
+        description: currentTransferDirection === 'toSmallCash' ? 'Transferencia a Caja Chica' : 'Transferencia a Capital Total'
+    };
+    
+    transactions.push(transferTransaction);
+    saveDataAndRefresh();
+    closeTransferModal();
+    showToast('✅', 'Transferencia', 'Completada exitosamente');
+});
+
+document.getElementById('editInvoiceImageInput').addEventListener('change', async function(e) {
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    try {
+        document.getElementById('editCompressingMsg').style.display = 'block';
+        
+        const options = {
+            maxSizeMB: 0.2,
+            maxWidthOrHeight: 800,
+            useWebWorker: true,
+            initialQuality: 0.70,
+            fileType: 'image/webp'
+        };
+        
+        const compressedFile = await imageCompression(file, options);
+        const reader = new FileReader();
+        
+        reader.onload = (event) => {
+            if (currentEditingTransaction) {
+                currentEditingTransaction.invoiceImage = event.target.result;
+                
+                const imageContainer = document.getElementById('editInvoiceImageContainer');
+                imageContainer.innerHTML = `
+                    <div class="image-preview-container">
+                        <img src="${event.target.result}" alt="Factura" onclick="openFullscreenImage('${event.target.result}')">
+                        <div class="image-actions">
+                            <button type="button" onclick="removeCurrentInvoice()" title="Eliminar">🗑️</button>
+                            <button type="button" onclick="document.getElementById('editInvoiceImageInput').click()" title="Cambiar">🔄</button>
+                        </div>
+                    </div>
+                `;
+            }
+            document.getElementById('editCompressingMsg').style.display = 'none';
+        };
+        
+        reader.readAsDataURL(compressedFile);
+    } catch (error) {
+        console.error('Error:', error);
+        document.getElementById('editCompressingMsg').style.display = 'none';
+    }
+});
+
+// Inicializar app al cargar
+let touchStartX = 0;
+let touchEndX = 0;
+let touchStartY = 0;
+let touchEndY = 0;
+const swipeThreshold = 50;
+
+document.addEventListener('touchstart', function(e) {
+    touchStartX = e.changedTouches[0].screenX;
+    touchStartY = e.changedTouches[0].screenY;
+}, false);
+
+document.addEventListener('touchend', function(e) {
+    touchEndX = e.changedTouches[0].screenX;
+    touchEndY = e.changedTouches[0].screenY;
+    handleSwipeGesture();
+}, false);
+
+function handleSwipeGesture() {
+    const swipeDistanceX = touchEndX - touchStartX;
+    const swipeDistanceY = touchEndY - touchStartY;
+    
+    // Calcular distancias absolutas
+    const absX = Math.abs(swipeDistanceX);
+    const absY = Math.abs(swipeDistanceY);
+    
+    // Solo procesar si el movimiento horizontal es MAYOR que el vertical
+    if (absX < swipeThreshold) return; // No es suficientemente horizontal
+    if (absY > absX) return; // Es más vertical que horizontal (scroll)
+    
+    const tabs = ['registro', 'smallCash', 'search', 'summary'];
+    const activeContent = document.querySelector('.tab-content.active');
+    if (!activeContent) return;
+    
+    const currentIndex = tabs.indexOf(activeContent.id);
+    
+    if (swipeDistanceX > 0 && currentIndex > 0) {
+        switchTab(tabs[currentIndex - 1]);
+    } else if (swipeDistanceX < 0 && currentIndex < tabs.length - 1) {
+        switchTab(tabs[currentIndex + 1]);
+    }
+}
+window.addEventListener('DOMContentLoaded', initializeApp);
+</script>
+</body>
+</html>
